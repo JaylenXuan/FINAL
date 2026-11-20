@@ -94,6 +94,14 @@
 
 用 2D 立牌：PNG 透明贴图 + 始终面向相机。1 小时一个，风格反而统一。作为兜底，不做首选。
 
+### 立牌用法（已出图）
+
+- 文件：`public/models/billboards/naiwa.png`、`nailong.png`，透明底，516px 高
+- 渲染：`PlaneGeometry` + `MeshBasicMaterial({ map, transparent: true, alphaTest: 0.1, side: DoubleSide })`
+- 高度 1.6m，脚底贴地，每帧面向相机
+- 位置：教室三个座位旁，朝讲台
+- 成本：0.5h
+
 ---
 
 ## D. 关于 GTA 逆向工程
@@ -119,6 +127,6 @@
 
 **待定**
 
-- 奶龙 / 奶蛙用 3D 还是 2D 立牌（看 STL 转换效果）
+- 奶龙 / 奶蛙先用 2D 立牌（已出图）；3D 版等 AI 建模结果再替换
 - 聊天三句台词
 - 地图缩放后是否显示房间名

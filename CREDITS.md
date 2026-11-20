@@ -22,6 +22,8 @@
 
 | 文件 | 来源 | 许可 | 说明 |
 | --- | --- | --- | --- |
+| `public/models/billboards/nailong.png` | 萌娘共享（[分类:奶龙](https://commons.moegirl.org.cn/Category:%E5%A5%B6%E9%BE%99)） | **CC BY-NC-SA 4.0**：署名、非商用、相同方式共享 | 奶龙立牌，白底已抠，512px 高 |
+| `public/models/billboards/naiwa.png` | [Orliss/nailong](https://github.com/Orliss/nailong)（仓库 MIT，角色版权归原作） | 非商用、署名 | 奶蛙立牌，白底已抠，512px 高 |
 | `public/models/characters/deepseek-reset.vrm` | B站 @hihihihi202（经 npm 包 `dsh-plugin-whale-mate@0.6.3`） | **署名、非商用、允许修改** | 鲸鱼娘同学；VRM 1.0，用 `@pixiv/three-vrm` 加载 |
 | 待补：奶龙 / 奶蛙 | 网络公开 STL（3D 打印模型） | 粉丝二创，版权归原作，仅课程非商用 | 转 GLB 后作静态同学，需在报告注明 |
 | 待补 | Mixamo / Kenney | 按下载页标注 | 人物与动画；加载后测包围盒缩放到 1.75m |
