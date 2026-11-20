@@ -4,7 +4,14 @@
 
 ---
 
-v0.2 收到了，32 个文件，代码能跑。REVIEW-v0.2 我对着代码核过，两条 P0 都成立。第 1 条是我上一轮拍错了：3.6 对走路 3.2 只快 0.4，18.87m 要 47 秒，规则不成立。改。
+v0.2 收到，32 个文件。项目已经推到仓库了，以后不用再发 zip：
+
+- 仓库：https://github.com/JaylenXuan/FINAL
+- 分支 `main`，commit `dab96c2`，37 个文件（多了 5 份内容侧文档）
+- clone 命令：`git clone https://github.com/JaylenXuan/FINAL.git`
+- **把你的 GitHub 用户名发我**，我加 collaborator
+
+REVIEW-v0.2 我对着代码核过，两条 P0 都成立。第 1 条是我上一轮拍错了：3.6 对走路 3.2 只快 0.4，18.87m 要 47 秒，规则不成立。改。
 
 ## 一、P0-1 追不上：改速度 + 改刷点 + 加超时
 
@@ -47,7 +54,7 @@ v0.2 收到了，32 个文件，代码能跑。REVIEW-v0.2 我对着代码核过
 - `data/lines.json`：8 → 19 条，新增 `PHONE_ESCAPED`、`STAR_LIMIT`、`CAUGHT_SUB`、`CLASS_Q`、`CLASS_OPT_1/2/3`、四个锚点名
 - `data/bits.json`：`cooldown` 改成 `0`
 - `docs/test-log.md`：试玩记录表
-- `docs/SHOT-LIST.md`：拍摄清单（周日之前拍完）
+- `docs/SHOT-LIST.md`：拍摄清单（周日之前拍完，4 地点 × 10 张 + 4 张平拍）
 - `docs/PATCH-v2.1.md`：上面所有改动的精确写法（含 JSON 片段和验收清单）
 - `docs/WORK-LOG-2026-11-20.md`：这一轮的工作记录
 
@@ -63,7 +70,7 @@ v0.2 收到了，32 个文件，代码能跑。REVIEW-v0.2 我对着代码核过
 
 1. `CHASER_SPEED 4.6` 可以吗？不改的话走路永远抓不到。
 2. `room.exit` + `a_out_*` 走 schema v2.1，可以吗？
-3. 仓库链接发我。你给的是个人主页，不是仓库地址；如果是私有库，先把我加成 collaborator。
+3. 你的 GitHub 用户名发我，我加 collaborator（仓库已经建好，clone 下来直接改）。
 
 ---
 
