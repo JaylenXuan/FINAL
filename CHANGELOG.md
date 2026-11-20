@@ -8,6 +8,8 @@
 
 - `index.html`：`#classq` 换成 Principal Xu 三选一，选项加 `data-opt`
 - `src/bits/bits.js`：`correct = 3`；`readAnswer` 支持小键盘 `Numpad1/2/3`
+- `src/main.js`：`death` 带 `reason`，按原因传 `WRONG` / `CAUGHT` 标题
+- `src/core/director.js`：`caught` 时间轴读 `opts.title`
 - `vite.config.js`：加 `server.watch.ignored`，修掉编辑数据文件时的 EBUSY
 - `scripts/test-bits.mjs`：断言改成「答错一次直接死」「答对按 3」
 

@@ -5,7 +5,7 @@ const TIMELINES = {
     dur: 1.1,
     steps: [
       { at: 0, run: (d) => { d.camera.shake(0.5, 0.35); d.audio.thud() } },
-      { at: 0.3, run: (d) => { d.ui.blackout(d.lines?.CAUGHT_TITLE?.en ?? 'CAUGHT', 'RECORDED') } }
+      { at: 0.3, run: (d) => { d.ui.blackout(d.opts?.title || d.lines?.CAUGHT_TITLE?.en || 'CAUGHT', 'RECORDED') } }
     ]
   },
   // 完整版 2.0s（教室：老师站桌前、同学回头由 bits 负责摆位）

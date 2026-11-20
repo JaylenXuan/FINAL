@@ -105,13 +105,16 @@ async function main() {
   }
 
   /* ---------- 死亡 → 选点 → 醒来 ---------- */
-  bus.on('death', () => {
+  bus.on('death', (payload) => {
     if (!state.is(S.PLAY)) return
     bits.stars = 0
     bits.questionOpen = false
     ui.showQuestion(false)
     state.set(S.CAUGHT)
-    director.play('caught')
+    const title = payload?.reason === 'class'
+      ? (lines.WRONG_TITLE?.en || 'WRONG')
+      : (lines.CAUGHT_TITLE?.en || 'CAUGHT')
+    director.play('caught', { title })
   })
 
   bus.on('director:done', ({ name }) => {
