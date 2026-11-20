@@ -13,20 +13,26 @@
 
 | 时间 | 画面 | 操作 | 讲解（英文，一句就够） |
 |---|---|---|---|
-| 0:00 | 教室，睡眼朦胧醒来 | 不用操作，等 2 秒 | "You fell asleep in class. This is how you wake up." |
-| 0:15 | 老师点名，三选一 | 故意按 `2` 答错 | "Wrong answer, one strike." |
-| 0:30 | 再点名 | 按 `1` 答对 | "Right answer, you survive." |
-| 0:45 | 出门到广场 | 走到门口按 `E` | "Everything is connected by doors and anchors." |
-| 1:00 | 广场 | 按 `Tab` 举手机，往前走 4 秒 | "Phone out, walking. This is the rule we all know." |
-| 1:10 | 校长从前面出现 | 继续走两步，**停下** | "Here he comes." |
-| 1:20 | 被抓住，震屏 | 不用操作 | "Caught." |
-| 1:25 | 黑屏 `CAUGHT` | 等 1 秒 | "GTA-style death screen." |
-| 1:35 | 选点界面 | 按 `1` 选教室，`Enter` | "You choose where to wake up." |
-| 1:45 | 教室醒来（完整版） | 看老师、同学 | "Same wake-up, full version." |
-| 2:10 | 传送到连廊 | 按 `3` | "Corridor — this is the campus look we're going for." |
-| 2:30 | 传送到图书馆 | 按 `4` | "Library lobby, next to be dressed." |
-| 2:50 | 回广场自由走 | 按 `1` | "One street, three interiors, all teleport-linked." |
-| 3:10 | 复位 | 按 `R` | "Reset in one second, so we can run it again." |
+| 0:00 | 教室，眨眼醒来 | 不用操作，等 2 秒 | "You fell asleep in class. This is how you wake up." |
+| 0:15 | 老师点名，三选一（三道都是校园梗） | 按 `3` 答对 | "Only one of these is something he actually said." |
+| 0:25 | 老师下课 | 不用操作 | "Correct. Class dismissed." |
+| 0:35 | 教室自由活动 | 走到同学旁边按 `E`，聊一句 | "Now you can walk around and talk to people." |
+| 0:55 | 出门到广场 | 走到门口按 `E` | "Everything is connected by doors and anchors." |
+| 1:10 | 广场 | 按 `Tab` 举手机，往前走 4 秒 | "Phone out, walking. This is the rule we all know." |
+| 1:25 | 校长从前面出现 | 继续走两步，**停下** | "Here he comes." |
+| 1:35 | 被抓住，震屏 | 不用操作 | "Caught." |
+| 1:40 | 黑屏 `CAUGHT` | 等 1 秒 | "GTA-style death screen." |
+| 1:50 | 选点界面 | 按 `1` 选教室，`Enter` | "You choose where to wake up." |
+| 2:00 | 教室醒来（完整版） | 看老师、同学 | "Same wake-up, full version." |
+| 2:20 | 传送到连廊 | 按 `3` | "Corridor — this is the campus look we're going for." |
+| 2:40 | 传送到图书馆 | 按 `4` | "Library lobby, next to be dressed." |
+| 2:55 | 回广场自由走 | 按 `1` | "One street, three interiors, all teleport-linked." |
+| 3:15 | 复位 | 按 `R` | "Reset in one second, so we can run it again." |
+
+## 注意
+
+- **答错一次就直接死**。演示时不要故意答错，死亡留给广场的手机 bit，节奏更顺。
+- 如果老师问“答错会怎样”，按 `1` 演示一次，反正 3 秒就黑屏重来。
 
 ## 讲解要点（挑 3 条说，别念稿）
 

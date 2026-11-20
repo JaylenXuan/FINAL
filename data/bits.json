@@ -18,7 +18,7 @@
     "enabled": true,
     "trigger": { "state": "wake_up", "seconds": 3 },
     "sequence": ["teacher_call", "answer", "wrong", "star"],
-    "outcome": { "starsPerWrong": 1, "threshold": 3, "line": "CLASS_KICKED", "resetStars": true },
+    "outcome": { "starsPerWrong": 1, "threshold": 1, "line": "CLASS_KICKED", "resetStars": true },
     "cooldown": 0
   }
 ]

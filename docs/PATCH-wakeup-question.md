@@ -1,13 +1,13 @@
-# 补丁：醒来眨眼 + 课堂答题可交互
+# 补丁：醒来眨眼 + 课堂问答 + 下课自由活动
 
-> 两个问题分开改，都在 Partner 侧文件里，照抄即可。
-> 我这边只改了 `data/lines.json` 的题干与选项。
+> 三个部分：A 眨眼（视觉）、B 答题（逻辑 + 文案）、C 下课后（设计，待实现）。
+> 我这边已同步改 `data/lines.json` 和 `data/bits.json`。
 
 ---
 
 ## A. 醒来眨眼
 
-现在的 `wake_up_full` 只有「黑幕淡出 + 模糊」，一共 2.0 秒，所以看起来像直接睁眼。
+现在的 `wake_up_full` 只有「黑幕淡出 + 模糊」，2.0 秒，看起来像直接睁眼。
 
 改成 2.2 秒的「睁—闭—再睁」：
 
@@ -21,10 +21,9 @@
 | 1.30 | 0.00 | 完全睁开 |
 | 2.05 | — | 关掉模糊遮罩 |
 
-### 1. `src/ui/blackout.js` 加一个方法
+### 1. `src/ui/blackout.js` 加方法
 
 ```js
-// 带过渡地改黑幕透明度；和 setBlack 的区别是不打断 CSS 过渡
 fadeBlack(v, seconds = 0.2) {
   this.el.classList.add('show')
   this.el.style.transitionDuration = `${seconds}s`
@@ -50,58 +49,59 @@ wake_up_full: {
 }
 ```
 
-### 3. 验收
-
-- 进游戏先全黑约 0.25 秒，然后亮一条缝
-- 亮 → 暗 → 更亮，至少两次眨眼
-- 2 秒后画面完全清楚，老师站在桌前
+验收：进游戏先全黑 0.25 秒，亮一条缝，再闭、再睁，至少两次眨眼。
 
 ---
 
-## B. 课堂答题可交互
+## B. 课堂问答
 
-现在大概率有两个问题：
+### 1. 题目（三道全是校园梗，只有一句是真的）
 
-1. 只认主键盘的 `Digit1/2/3`，小键盘和鼠标点击都不响应
-2. 题目是「老师刚问了什么」，玩家没上下文，只能瞎选
-
-### 1. 换一道不需要上下文的题
-
-`index.html` 里替换 `#classq` 的卡片：
+`index.html` 替换 `#classq` 卡片：
 
 ```html
 <div id="classq">
   <div class="card">
-    <div class="q">What is 12 × 12?</div>
-    <div class="opt" data-opt="1"><kbd>1</kbd><span>124</span></div>
-    <div class="opt" data-opt="2"><kbd>2</kbd><span>144</span></div>
-    <div class="opt" data-opt="3"><kbd>3</kbd><span>154</span></div>
+    <div class="q">Which one did the Principal actually say?</div>
+    <div class="opt" data-opt="1"><kbd>1</kbd><span>Ranking 260 in the gaokao beats 2,600.</span></div>
+    <div class="opt" data-opt="2"><kbd>2</kbd><span>Walk while you're on your phone.</span></div>
+    <div class="opt" data-opt="3"><kbd>3</kbd><span>Parents, stop micromanaging your kid's college life.</span></div>
   </div>
 </div>
 ```
 
-正确项改成第 2 个。
+正确答案是 **3**。
 
-### 2. `src/bits/bits.js`：正确答案改 2，键位加小键盘
+### 2. 答错一次直接请出去
+
+`data/bits.json` 里 `class_sleep.outcome.threshold` 已改成 **1**，代码里 `n >= (threshold || 3)` 会自动生效，不用改。
+
+但 `answer()` 里的 `correct` 要改成 3：
 
 ```js
-const correct = 2
-
-readAnswer() {
-  const keys = [
-    [['Digit1', 'Numpad1'], 1],
-    [['Digit2', 'Numpad2'], 2],
-    [['Digit3', 'Numpad3'], 3]
-  ]
-  const hit = keys.find(([codes]) => codes.some((c) => this.input.once(c)))
-  if (!hit) return
-  this.answer(hit[1])
-}
+const correct = 3
 ```
 
-### 3. `src/main.js`：选项可点击
+并且**删掉「再被点名」的循环**：答错 → 加星 → 立刻 `emit('death', ...)`，不再回到 idle。
 
-在 `bits` 创建之后加：
+验收：
+- 按 1 或 2：字幕 `Wrong. Again.` → 直接黑屏 → 记过
+- 按 3：字幕 `Correct. Class dismissed.` → 老师下课 → 可以在教室走动
+
+### 3. 键位与鼠标
+
+`readAnswer()` 加小键盘：
+
+```js
+const keys = [
+  [['Digit1', 'Numpad1'], 1],
+  [['Digit2', 'Numpad2'], 2],
+  [['Digit3', 'Numpad3'], 3]
+]
+const hit = keys.find(([codes]) => codes.some((c) => this.input.once(c)))
+```
+
+`src/main.js` 加点击：
 
 ```js
 document.querySelectorAll('#classq .opt').forEach((el) => {
@@ -112,28 +112,43 @@ document.querySelectorAll('#classq .opt').forEach((el) => {
 })
 ```
 
-顺手给选项加个手型光标（`index.html` 的样式里）：
+`index.html` 样式加 `#classq .opt { cursor: pointer; }`。
 
-```css
-#classq .opt { cursor: pointer; }
-```
+### 4. 测试要改
 
-### 4. 验收
-
-- 题目出现后，主键盘 1/2/3、小键盘 1/2/3、鼠标点击都能答
-- 选 2 正确，字幕「Sit down. Pay attention.」，不扣星
-- 选 1 或 3 错误，星 +1，字幕「Wrong. Again.」
-- 连错 3 次，被请出教室，黑屏
+`scripts/test-bits.mjs` 里「连续答错 → 3 星 → 逐出」这条断言要改成「答错一次 → 直接死亡」。不改的话测试会红。
 
 ---
 
-## C. 我这边同步改的
+## C. 下课后自由活动（待实现）
 
-`data/lines.json` 已更新（等接线后生效）：
+答对后老师下课，玩家留在教室，可以走动。这一段建议做成 **30–45 秒的自由活动**，不要长，否则演示节奏拖。
+
+### 最容易做的三个交互（按成本排）
+
+| 交互 | 做法 | 成本 |
+|---|---|---|
+| **和同学聊天** | 靠近同学按 E，弹一句气泡（随机 3 选 1） | 1–2h |
+| **掰手腕** | 按空格连打，双方进度条，赢了三选一 | 2–3h |
+| **递纸条** | 靠近同学按 E，纸条飞过去，老师回头（无判定） | 1–2h |
+
+推荐：**聊天（三个同学各一句）+ 掰手腕（一个同学）**。聊天负责“这教室有人”，掰手腕负责“有个小游戏”，加起来 4 小时左右，比再加一个 bit 便宜。
+
+### 需要的数据
 
 ```json
-"CLASS_Q":     { "en": "What is 12 × 12?", "zh": "12 × 12 等于多少？" },
-"CLASS_OPT_1": { "en": "124", "zh": "124" },
-"CLASS_OPT_2": { "en": "144", "zh": "144" },
-"CLASS_OPT_3": { "en": "154", "zh": "154" }
+"classmates": [
+  { "id": "cm_1", "pos": [-3, 0, 1], "line": "CM_1" },
+  { "id": "cm_2", "pos": [3, 0, 1], "line": "CM_2" },
+  { "id": "cm_3", "pos": [0, 0, 3], "line": "CM_3" }
+]
 ```
+
+台词三条我先写在 `lines.json` 里（`CM_1/2/3`），等位置定了再接。
+
+---
+
+## D. 我这边已同步改的
+
+- `data/lines.json`：题干与三个选项换成新版；`CLASS_ANSWER_OK` 改成 “Correct. Class dismissed.”
+- `data/bits.json`：`class_sleep` 的 `threshold` 从 3 改成 1
