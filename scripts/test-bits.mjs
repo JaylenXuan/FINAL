@@ -98,7 +98,7 @@ function makeEnv({ zone = 'outdoor' } = {}) {
   console.log('✓ class_sleep 3 秒后点名')
 }
 
-/* 4. 答错 +1 星；3 星被赶出教室 → death */
+/* 4. 答错一次：+1 星 → 直接死亡 */
 {
   const env = makeEnv({ zone: 'classroom' })
   env.state.set(S.WAKEUP)
@@ -112,16 +112,9 @@ function makeEnv({ zone = 'outdoor' } = {}) {
   }
 
   answer('Digit2')
-  assert.equal(env.bits.stars, 1)
-  env.step(3.2) // 再被点名
-  answer('Digit3')
-  assert.equal(env.bits.stars, 2)
-  env.step(3.2)
-  answer('Digit2')
-  assert.equal(env.bits.stars, 3)
-  assert.equal(env.log.deaths.length, 1, '3 星应被请出教室')
+  assert.equal(env.log.deaths.length, 1, '答错应直接死亡')
   assert.equal(env.log.deaths[0].line, 'CLASS_KICKED')
-  console.log('✓ class_sleep 连续答错 → 3 星 → 逐出')
+  console.log('✓ class_sleep 答错一次 → 直接逐出')
 }
 
 /* 5. 答对不扣星，bit 结束 */
@@ -129,7 +122,7 @@ function makeEnv({ zone = 'outdoor' } = {}) {
   const env = makeEnv({ zone: 'classroom' })
   env.state.set(S.WAKEUP)
   env.step(3.1)
-  env.press('Digit1')
+  env.press('Digit3')
   env.step(0.4)
   assert.equal(env.bits.stars, 0)
   assert.equal(env.bits.getPhase('class_sleep'), 'done')

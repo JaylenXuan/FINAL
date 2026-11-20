@@ -161,18 +161,18 @@ export class Bits {
 
   readAnswer() {
     const keys = [
-      ['Digit1', 1],
-      ['Digit2', 2],
-      ['Digit3', 3]
+      [['Digit1', 'Numpad1'], 1],
+      [['Digit2', 'Numpad2'], 2],
+      [['Digit3', 'Numpad3'], 3]
     ]
-    const hit = keys.find(([code]) => this.input.once(code))
+    const hit = keys.find(([codes]) => codes.some((c) => this.input.once(c)))
     if (!hit) return
     this.answer(hit[1])
   }
 
   answer(choice) {
     const bit = this.get('class_sleep')
-    const correct = 1 // 具体答案【暂定】，先固定第 1 项为正确答案
+    const correct = 3 // C：家长不要过度干预孩子的大学生活
     this.questionOpen = false
     this.ui.showQuestion(false)
 

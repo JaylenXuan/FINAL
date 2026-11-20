@@ -2,6 +2,19 @@
 
 > 规则：只追加，不改别人的行；改 schema 必须先在这里写一条，等两人确认后再动代码。
 
+## Hotfix · 2026-11-20 晚（内容侧，已推）
+
+为了让项目能直接试玩，动了三个 Partner 文件，**review 时请确认**：
+
+- `index.html`：`#classq` 换成 Principal Xu 三选一，选项加 `data-opt`
+- `src/bits/bits.js`：`correct = 3`；`readAnswer` 支持小键盘 `Numpad1/2/3`
+- `vite.config.js`：加 `server.watch.ignored`，修掉编辑数据文件时的 EBUSY
+- `scripts/test-bits.mjs`：断言改成「答错一次直接死」「答对按 3」
+
+**验证**：9 组测试全过；`npm run build` 通过；dev server 200。
+
+**新增**：`docs/minimap-draft.png` / `.svg`（小地图草图，待 Partner 接）
+
 ## Unreleased · 内容侧 — 2026-11-20
 
 **改了**
