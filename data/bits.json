@@ -1,0 +1,24 @@
+[
+  {
+    "id": "phone_walk",
+    "zone": "outdoor",
+    "priority": "P0",
+    "enabled": true,
+    "trigger": { "all": [ { "phoneUp": true }, { "moving": true }, { "seconds": 4 } ] },
+    "onTrigger": { "stars": 1 },
+    "actor": { "type": "principal", "spawn": "far_end" },
+    "sequence": ["warn", "chase", "capture", "death"],
+    "outcome": { "line": "PHONE_CAUGHT", "resetStars": true },
+    "cooldown": 0
+  },
+  {
+    "id": "class_sleep",
+    "zone": "classroom",
+    "priority": "P0",
+    "enabled": true,
+    "trigger": { "state": "wake_up", "seconds": 3 },
+    "sequence": ["teacher_call", "answer", "wrong", "star"],
+    "outcome": { "starsPerWrong": 1, "threshold": 3, "line": "CLASS_KICKED", "resetStars": true },
+    "cooldown": 0
+  }
+]

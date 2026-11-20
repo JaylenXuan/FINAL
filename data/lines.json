@@ -1,0 +1,21 @@
+{
+  "PHONE_CAUGHT": { "en": "No phones while walking.", "zh": "走路不要看手机。" },
+  "PHONE_WARN": { "en": "Hey! You there. Phone down.", "zh": "喂！那个同学，手机放下。" },
+  "PHONE_CHASE": { "en": "Come back here!", "zh": "站住！" },
+  "PHONE_ESCAPED": { "en": "Run, then. I'll remember your face.", "zh": "跑吧。你的脸我记住了。" },
+  "STAR_LIMIT": { "en": "That's three. Come with me.", "zh": "第三次了，跟我走一趟。" },
+  "CAUGHT_TITLE": { "en": "CAUGHT", "zh": "记过" },
+  "CAUGHT_SUB": { "en": "Report to the office.", "zh": "请到办公室说明情况。" },
+  "CLASS_WAKE": { "en": "Wake up. Answer the question.", "zh": "醒醒，回答这个问题。" },
+  "CLASS_Q": { "en": "What did I just ask?", "zh": "我刚才问的是什么？" },
+  "CLASS_OPT_1": { "en": "The derivative of x squared", "zh": "x² 的导数" },
+  "CLASS_OPT_2": { "en": "The capital of Australia", "zh": "澳大利亚的首都" },
+  "CLASS_OPT_3": { "en": "Page 42, paragraph 2", "zh": "第 42 页第二段" },
+  "CLASS_WRONG": { "en": "Wrong. Again.", "zh": "错了，再来。" },
+  "CLASS_ANSWER_OK": { "en": "Sit down. Pay attention.", "zh": "坐下，注意听讲。" },
+  "CLASS_KICKED": { "en": "Out of my class.", "zh": "你给我出去。" },
+  "ANCHOR_CLASSROOM": { "en": "Classroom", "zh": "教室" },
+  "ANCHOR_CORRIDOR": { "en": "Corridor", "zh": "连廊" },
+  "ANCHOR_LIBRARY": { "en": "Library", "zh": "图书馆" },
+  "ANCHOR_PLAZA": { "en": "Plaza", "zh": "广场" }
+}

@@ -1,0 +1,62 @@
+{
+  "meta": { "version": 2, "unit": "meter", "up": "Y" },
+  "outdoor": {
+    "ground": { "size": [26, 26], "material": "paving" },
+    "buildings": [
+      { "id": "b_teach", "pos": [-5, 0, -8], "size": [10, 16, 3.6], "rotationY": 0, "facade": "teach.jpg" }
+    ],
+    "props": [
+      { "type": "tree", "pos": [6, 0, 4], "rotationY": 0 },
+      { "type": "tree", "pos": [7.5, 0, -2], "rotationY": 0 },
+      { "type": "tree", "pos": [-8, 0, 3], "rotationY": 0 },
+      { "type": "bench", "pos": [3, 0, 2], "rotationY": 90 },
+      { "type": "gate", "pos": [3.4, 0, 9.3], "rotationY": 0 },
+      { "type": "door", "pos": [-3, 0, -6.2], "rotationY": 0, "to": "a_classroom" },
+      { "type": "door", "pos": [-6.5, 0, -6.2], "rotationY": 0, "to": "a_library" }
+    ],
+    "bounds": [[-10, -10], [10, 10]],
+    "anchors": [
+      { "id": "a_plaza", "pos": [0, 0, 6], "yaw": 180 }
+    ]
+  },
+  "rooms": [
+    {
+      "id": "classroom",
+      "kind": "room",
+      "shell": "room_10x8x4",
+      "origin": [100, 0, 0],
+      "props": [
+        { "type": "podium", "pos": [0, 0, -3] },
+        { "type": "desk", "pos": [-3, 0, -1] },
+        { "type": "desk", "pos": [0, 0, -1] },
+        { "type": "desk", "pos": [3, 0, -1] },
+        { "type": "desk", "pos": [-3, 0, 1] },
+        { "type": "desk", "pos": [0, 0, 1] },
+        { "type": "desk", "pos": [3, 0, 1] }
+      ],
+      "camera": { "pos": [4.2, 3.2, 3.6], "lookAt": [0, 1.3, -2.5], "fov": 55 },
+      "anchors": [ { "id": "a_classroom", "pos": [0, 0, 2], "yaw": 0 } ]
+    },
+    {
+      "id": "library",
+      "kind": "room",
+      "shell": "room_6x6x4",
+      "origin": [200, 0, 0],
+      "props": [
+        { "type": "desk", "pos": [-1.5, 0, -1] },
+        { "type": "desk", "pos": [1.5, 0, -1] }
+      ],
+      "camera": { "pos": [2.2, 2.5, 2.2], "lookAt": [0, 1.2, -1.5], "fov": 55 },
+      "anchors": [ { "id": "a_library", "pos": [0, 0, 2], "yaw": 0 } ]
+    },
+    {
+      "id": "corridor",
+      "kind": "corridor",
+      "shell": "room_3x8x3.8",
+      "origin": [300, 0, 0],
+      "props": [],
+      "camera": { "pos": [0, 1.8, 3.2], "lookAt": [0, 1.4, -4], "fov": 55 },
+      "anchors": [ { "id": "a_corridor", "pos": [0, 0, 1.5], "yaw": 0 } ]
+    }
+  ]
+}
