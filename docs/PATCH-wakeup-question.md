@@ -62,7 +62,7 @@ wake_up_full: {
 ```html
 <div id="classq">
   <div class="card">
-    <div class="q">Which one did the Principal actually say?</div>
+    <div class="q">Which one did Principal Xu actually say?</div>
     <div class="opt" data-opt="1"><kbd>1</kbd><span>Ranking 260 in the gaokao beats 2,600.</span></div>
     <div class="opt" data-opt="2"><kbd>2</kbd><span>Walk while you're on your phone.</span></div>
     <div class="opt" data-opt="3"><kbd>3</kbd><span>Parents, stop micromanaging your kid's college life.</span></div>
@@ -85,8 +85,26 @@ const correct = 3
 并且**删掉「再被点名」的循环**：答错 → 加星 → 立刻 `emit('death', ...)`，不再回到 idle。
 
 验收：
-- 按 1 或 2：字幕 `Wrong. Again.` → 直接黑屏 → 记过
+- 按 1 或 2：字幕 `Wrong.` → 直接黑屏，**大字显示 WRONG**（不是 CAUGHT）
 - 按 3：字幕 `Correct. Class dismissed.` → 老师下课 → 可以在教室走动
+
+### 2.5 死亡大字按原因区分
+
+`director.js` 现在写死 `CAUGHT_TITLE`，要按 `death` 的 `reason` 换：
+
+```js
+// main.js
+bus.on('death', (payload) => {
+  ...
+  const title = payload?.reason === 'class' ? 'WRONG' : 'CAUGHT'
+  director.play('caught', { title })
+})
+
+// director.js caught 时间轴
+{ at: 0.3, run: (d) => d.ui.blackout(d.opts?.title || 'CAUGHT', 'RECORDED') }
+```
+
+`lines.json` 里已加 `WRONG_TITLE`（`WRONG / 答错`），可以直接取。
 
 ### 3. 键位与鼠标
 
