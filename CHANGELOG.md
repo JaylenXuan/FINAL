@@ -13,6 +13,10 @@
 - `vite.config.js`：加 `server.watch.ignored`，修掉编辑数据文件时的 EBUSY
 - `scripts/test-bits.mjs`：断言改成「答错一次直接死」「答对按 3」
 
+**新增**
+- `src/ui/minimap.js`：常驻左上小地图，按 `world.json` 的 bounds / buildings / props / 门 / 锚点实时绘制；死亡时放大到 320，醒来缩回 220。
+- `main.js`：创建 minimap，每帧 `update(player)`，死亡 `setMode('select')`，醒来 `setMode('normal')`。
+
 **验证**：9 组测试全过；`npm run build` 通过；dev server 200。
 
 **新增**：`docs/minimap-draft.png` / `.svg`（小地图草图，待 Partner 接）

@@ -10,6 +10,7 @@ import { CameraRig } from './player/camera.js'
 import { Chaser } from './npc/chaser.js'
 import { Bits } from './bits/bits.js'
 import { HUD } from './ui/hud.js'
+import { createMinimap } from './ui/minimap.js'
 import { Blackout } from './ui/blackout.js'
 import { Audio } from './audio/audio.js'
 
@@ -64,6 +65,7 @@ async function main() {
   /* ---------- 世界 / 状态 / 系统 ---------- */
   const bus = new EventBus()
   const world = buildWorld(worldData, scene)
+  const minimap = createMinimap({ data: worldData, world })
   const state = new GameState(bus)
   const input = new Input()
   const ui = new HUD()
@@ -114,6 +116,7 @@ async function main() {
     const title = payload?.reason === 'class'
       ? (lines.WRONG_TITLE?.en || 'WRONG')
       : (lines.CAUGHT_TITLE?.en || 'CAUGHT')
+    minimap.setMode('select')
     director.play('caught', { title })
   })
 
@@ -137,6 +140,7 @@ async function main() {
       state.set(S.PLAY)
       bits.reset() // 清冷却/相位，星已在死亡时归零
       ui.setPhone(player.phoneUp)
+      minimap.setMode('normal')
     }
   })
 
@@ -237,6 +241,7 @@ async function main() {
     render(alpha, realDt) {
       player.sync(alpha)
       rig.update(realDt, player.pos)
+      minimap.update(player)
       renderer.render(scene, camera)
     }
   })
