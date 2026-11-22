@@ -8,6 +8,9 @@ export class HUD {
     this.subZh = this.subEl.querySelector('.zh')
     this.phoneEl = document.getElementById('phone')
     this.classq = document.getElementById('classq')
+    this.promptEl = document.getElementById('prompt')
+    this.promptText = this.promptEl ? this.promptEl.querySelector('span') : null
+    this._prompt = null
     this.subTimer = 0
     this.starEls = [...this.starsEl.querySelectorAll('i')]
   }
@@ -35,6 +38,20 @@ export class HUD {
 
   showQuestion(on) {
     this.classq.classList.toggle('show', !!on)
+  }
+
+  /** 靠近门 / 同学时的 E 提示；传空字符串隐藏 */
+  setPrompt(text) {
+    if (!this.promptEl) return
+    const t = text || ''
+    if (t === this._prompt) return
+    this._prompt = t
+    if (t) {
+      this.promptText.textContent = t
+      this.promptEl.classList.add('show')
+    } else {
+      this.promptEl.classList.remove('show')
+    }
   }
 
   update(dt) {

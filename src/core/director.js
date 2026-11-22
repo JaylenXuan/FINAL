@@ -5,15 +5,29 @@ const TIMELINES = {
     dur: 1.1,
     steps: [
       { at: 0, run: (d) => { d.camera.shake(0.5, 0.35); d.audio.thud() } },
-      { at: 0.3, run: (d) => { d.ui.blackout(d.opts?.title || d.lines?.CAUGHT_TITLE?.en || 'CAUGHT', 'RECORDED') } }
+      { at: 0.3, run: (d) => { d.ui.blackout(d.opts?.title || d.lines?.CAUGHT_TITLE?.en || 'CAUGHT', d.opts?.sub ?? 'RECORDED') } }
     ]
   },
-  // 完整版 2.0s（教室：老师站桌前、同学回头由 bits 负责摆位）
+  // 完整版 2.2s：全黑 → 睁一条缝 → 闭上 → 更亮 → 再眨 → 完全睁开
   wake_up_full: {
-    dur: 2.0,
+    dur: 2.2,
     steps: [
-      { at: 0, run: (d) => { d.ui.wakeOn(); d.ui.clearBlack(0.35); d.audio.tinnitus(1.6) } },
-      { at: 1.55, run: (d) => { d.ui.wakeOff() } }
+      { at: 0.0, run: (d) => { d.ui.setBlack(1); d.ui.wakeOn(); d.audio.tinnitus(2.0) } },
+      { at: 0.25, run: (d) => d.ui.fadeBlack(0.72, 0.18) },
+      { at: 0.55, run: (d) => d.ui.fadeBlack(1.0, 0.1) },
+      { at: 0.75, run: (d) => d.ui.fadeBlack(0.42, 0.22) },
+      { at: 1.1, run: (d) => d.ui.fadeBlack(0.92, 0.1) },
+      { at: 1.3, run: (d) => d.ui.fadeBlack(0.0, 0.55) },
+      { at: 2.05, run: (d) => { d.ui.wakeOff(); d.ui.clearBlack(0.01) } }
+    ]
+  },
+  // 死亡选点确认：地图缩回 + 0.3s 淡入醒来（不做开场的长眨眼）
+  wake_up_map: {
+    dur: 0.42,
+    steps: [
+      { at: 0, run: (d) => { d.ui.setBlack(1); d.ui.wakeOn() } },
+      { at: 0.08, run: (d) => d.ui.clearBlack(0.3) },
+      { at: 0.38, run: (d) => { d.ui.wakeOff(); d.ui.clearBlack(0.02) } }
     ]
   },
   // 简化版 1.2s：只有模糊 + 耳鸣
@@ -61,6 +75,8 @@ export class Director {
     this.t = 0
     this.cursor = 0
     this.opts = opts
+    // 时间轴 step 拿到的是 deps 对象；把 opts 挂上去，caught 才能按 reason 显示 WRONG/CAUGHT
+    this.deps.opts = opts
     this.deps.bus.emit('director:start', { name: key })
   }
 

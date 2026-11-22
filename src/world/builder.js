@@ -53,6 +53,7 @@ export function buildWorld(data, scene) {
   const anchors = new Map()
   const interactables = []
   const roomCameras = {}
+  const buildings = []
   const root = new THREE.Group()
   scene.add(root)
 
@@ -100,7 +101,10 @@ export function buildWorld(data, scene) {
     const mesh = slab(w, h, d, mat, b.pos[0], b.pos[1], b.pos[2])
     mesh.rotation.y = THREE.MathUtils.degToRad(b.rotationY || 0)
     root.add(mesh)
-    outdoorColliders.push(worldAABB(b.pos[0], b.pos[1], b.pos[2], w, h, d))
+    const buildingBox = worldAABB(b.pos[0], b.pos[1], b.pos[2], w, h, d)
+    outdoorColliders.push(buildingBox)
+    // 校长的 16 点刷点要排除建筑
+    buildings.push(buildingBox)
   }
 
   for (const p of out.props) {
@@ -196,13 +200,14 @@ export function buildWorld(data, scene) {
 
     zones[room.id] = { id: room.id, colliders, bounds: null, origin: new THREE.Vector3(ox, oy, oz), size: { w, d, h } }
 
-    // 房间出口：站在门洞附近按 E 回广场
+    // 房间出口：schema v2.1 用 room.exit 指定门外锚点，缺省回广场
+    const exitId = room.exit || 'a_plaza'
     interactables.push({
       zone: room.id,
       pos: new THREE.Vector3(ox, 0, oz + d / 2 + 0.6),
       radius: 2.0,
-      anchorId: 'a_plaza',
-      label: 'Plaza'
+      anchorId: exitId,
+      label: anchorLabel(exitId)
     })
 
     if (room.camera) {
@@ -237,13 +242,10 @@ export function buildWorld(data, scene) {
     })
   }
 
-  // 锚点顺序就是选点界面 1-4 的顺序：教室 / 连廊 / 图书馆 / 广场
+  // 锚点顺序就是选点界面 1-4 的顺序：教室 / 连廊 / 图书馆 / 广场。
+  // a_out_* 只是房间出口，不进选点列表（schema v2.1）。
   const order = ['a_classroom', 'a_corridor', 'a_library', 'a_plaza']
-  const anchorList = [...anchors.values()].sort((x, y) => {
-    const ix = order.indexOf(x.id)
-    const iy = order.indexOf(y.id)
-    return (ix < 0 ? 99 : ix) - (iy < 0 ? 99 : iy)
-  })
+  const anchorList = order.map((id) => anchors.get(id)).filter(Boolean)
 
   // 门的 to 必须在锚点表里存在，否则按 E 会没反应（这类数据错误最难自查）
   for (const it of interactables) {
@@ -256,5 +258,5 @@ export function buildWorld(data, scene) {
     if (!known.has(id)) console.warn(`[builder] 缺少锚点 ${id}，选点界面会少一项`)
   }
 
-  return { root, zones, anchors, anchorList, interactables, roomCameras }
+  return { root, zones, anchors, anchorList, interactables, roomCameras, buildings }
 }

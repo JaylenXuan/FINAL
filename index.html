@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" href="data:," />
   <title>AIE1101 — Campus Sandbox (prototype)</title>
   <style>
     :root {
@@ -23,7 +24,7 @@
       color: var(--paper); font-size: 13px; letter-spacing: .04em;
       text-shadow: 0 1px 2px rgba(0,0,0,.6);
     }
-    #hud-top { position: absolute; top: 18px; left: 20px; display: flex; align-items: center; gap: 18px; }
+    #hud-top { position: absolute; top: 18px; left: 252px; display: flex; align-items: center; gap: 18px; }
     #stars { display: flex; gap: 6px; }
     #stars i {
       width: 14px; height: 14px; display: block;
@@ -73,15 +74,44 @@
     #classq .opt {
       display: flex; gap: 12px; align-items: center; padding: 10px 12px; margin-bottom: 8px;
       border: 1px solid rgba(16,19,26,.16); border-radius: 3px; font-size: 15px;
+      cursor: pointer; transition: background .12s, border-color .12s;
     }
+    #classq .opt:hover { background: rgba(16,19,26,.06); border-color: rgba(16,19,26,.38); }
     #classq .opt kbd {
       width: 22px; height: 22px; display: grid; place-items: center;
       background: var(--ink); color: var(--paper); border-radius: 3px; font-size: 12px;
     }
 
+    /* ---------- interaction prompt / speech bubble ---------- */
+    #prompt {
+      position: fixed; left: 50%; bottom: 152px; transform: translateX(-50%) translateY(8px);
+      display: flex; align-items: center; gap: 9px;
+      padding: 8px 14px 8px 10px;
+      background: rgba(10,14,20,.72); border: 1px solid rgba(255,255,255,.18);
+      border-radius: 8px; color: var(--paper); font-size: 12px; letter-spacing: .04em;
+      opacity: 0; pointer-events: none; transition: opacity .14s, transform .14s; z-index: 40;
+    }
+    #prompt.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    #prompt kbd {
+      display: grid; place-items: center; width: 22px; height: 20px; border-radius: 4px;
+      background: var(--paper); color: var(--ink); font-weight: 700; font-size: 11px;
+    }
+    #bubble {
+      position: fixed; left: 0; top: 0; transform: translate(-50%, -100%) scale(.9);
+      padding: 7px 11px; background: rgba(245,241,232,.96); color: var(--ink);
+      border-radius: 10px; font-size: 13px; line-height: 1.2; white-space: nowrap;
+      opacity: 0; pointer-events: none; transition: opacity .12s, transform .12s; z-index: 45;
+      box-shadow: 0 6px 20px rgba(0,0,0,.35);
+    }
+    #bubble::after {
+      content: ""; position: absolute; left: 50%; bottom: -6px; width: 12px; height: 12px;
+      background: rgba(245,241,232,.96); transform: translateX(-50%) rotate(45deg);
+    }
+    #bubble.show { opacity: 1; transform: translate(-50%, -100%) scale(1); }
+
     /* ---------- blackout + anchor picker ---------- */
     #black {
-      position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none;
+      position: fixed; inset: 0; background: rgba(3,5,9,.96); opacity: 0; pointer-events: none;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       color: var(--paper); transition: opacity .25s;
     }
@@ -128,6 +158,7 @@
       <b>1-4</b> teleport &nbsp; <b>F</b> force bit &nbsp; <b>R</b> reset
     </div>
     <div id="subtitle"><div class="en"></div><div class="zh"></div></div>
+    <div id="prompt"><kbd>E</kbd><span></span></div>
     <div id="phone">
       <div class="bar short"></div>
       <div class="app"></div>
@@ -135,6 +166,8 @@
       <div class="bar short"></div>
     </div>
   </div>
+
+  <div id="bubble"></div>
 
   <div id="classq">
     <div class="card">

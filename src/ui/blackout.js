@@ -21,6 +21,14 @@ export class Blackout {
     this.el.style.transitionDuration = ''
   }
 
+  /** 按指定秒数淡到某个不透明度（醒来眨眼用） */
+  fadeBlack(v, seconds = 0.2) {
+    this.el.classList.add('show')
+    this.el.style.transitionDuration = `${seconds}s`
+    this.el.style.opacity = String(v)
+    void this.el.offsetWidth
+  }
+
   blackout(title = '', sub = '') {
     this.titleEl.textContent = title
     this.subEl.textContent = sub

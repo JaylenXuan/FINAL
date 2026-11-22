@@ -1,353 +1,545 @@
-// 常驻小地图（GTA5 雷达风格）：直接读 world.json 的地形数据绘制，不依赖图片。
-// 用法：const mini = createMinimap({ data: worldData, world })
-//       mini.update(player)
-//       mini.setSelectMode(anchors, (anchor) => ...)  // 死亡后点图选点
+// 常驻小地图（GTA5 雷达风格）
+// - 全部由 data/world.json 的 building / room / prop 矩形生成 SVG，不手画
+// - 常态 220×220，死亡选点时放大到 320×320，只亮地图、锚点脉冲、键鼠选点
+// - 玩家箭头跟着 yaw 转；室内显示当前 room 的俯视图
 
-const ZONE_LABEL = {
-  outdoor: 'Plaza',
-  classroom: 'Classroom',
-  library: 'Library',
-  corridor: 'Corridor'
+const NS = 'http://www.w3.org/2000/svg'
+const SIZE = 220
+const ANCHOR_COLOR = {
+  a_classroom: '#ffd166',
+  a_corridor: '#5fd3c4',
+  a_library: '#78c8ff',
+  a_plaza: '#ff8f6b'
+}
+const ZONE_LABEL = { outdoor: 'Plaza', classroom: 'Classroom', library: 'Library', corridor: 'Corridor' }
+
+function svgEl(tag, attrs = {}, parent = null) {
+  const node = document.createElementNS(NS, tag)
+  for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, String(v))
+  if (parent) parent.appendChild(node)
+  return node
+}
+
+function roundedPath(x, y, w, h, r) {
+  const rr = Math.max(0, Math.min(r, w / 2, h / 2))
+  return `M${x + rr},${y} H${x + w - rr} Q${x + w},${y} ${x + w},${y + rr} V${y + h - rr} Q${x + w},${y + h} ${x + w - rr},${y + h} H${x + rr} Q${x},${y + h} ${x},${y + h - rr} V${y + rr} Q${x},${y} ${x + rr},${y} Z`
 }
 
 export function createMinimap({ data, world }) {
-  const SIZE = 640
   const host = document.createElement('div')
   host.id = 'minimap'
   Object.assign(host.style, {
     position: 'fixed',
-    left: '24px',
-    top: '24px',
-    width: '220px',
-    height: '220px',
-    borderRadius: '14px',
+    left: '16px',
+    top: '16px',
+    width: `${SIZE}px`,
+    height: `${SIZE}px`,
+    borderRadius: '16px',
     overflow: 'hidden',
-    background: 'rgba(12,16,22,.92)',
-    border: '1px solid rgba(220,230,240,.55)',
-    boxShadow: '0 6px 24px rgba(0,0,0,.45)',
+    background: 'rgba(10,14,20,.94)',
+    border: '1px solid rgba(220,232,244,.62)',
+    boxShadow: '0 8px 28px rgba(0,0,0,.5)',
     zIndex: '60',
-    transition: 'width .25s ease, height .25s ease',
-    pointerEvents: 'none',
-    cursor: 'default'
+    transition: 'width .28s ease, height .28s ease, border-color .28s',
+    pointerEvents: 'none'
   })
 
-  const canvas = document.createElement('canvas')
-  canvas.width = SIZE
-  canvas.height = SIZE
-  canvas.style.width = '100%'
-  canvas.style.height = '100%'
-  canvas.style.display = 'block'
-  host.appendChild(canvas)
+  const svg = svgEl('svg', { viewBox: `0 0 ${SIZE} ${SIZE}`, width: '100%', height: '100%' }, host)
+  const defs = svgEl('defs', {}, svg)
+  const clip = svgEl('clipPath', { id: 'minimap-clip' }, defs)
+  svgEl('path', { d: roundedPath(1, 1, SIZE - 2, SIZE - 2, 15) }, clip)
+  const clipped = svgEl('g', { 'clip-path': 'url(#minimap-clip)' }, svg)
+  const baseG = svgEl('g', {}, clipped)
+  const dynG = svgEl('g', {}, clipped)
+  const frameG = svgEl('g', {}, svg)
 
   const tag = document.createElement('div')
   Object.assign(tag.style, {
     position: 'absolute',
     left: '12px',
     bottom: '10px',
-    color: 'rgba(220,232,244,.85)',
-    font: '600 11px/1 system-ui, sans-serif',
-    letterSpacing: '.08em',
-    textTransform: 'uppercase'
+    color: 'rgba(220,232,244,.82)',
+    font: '600 10.5px/1 system-ui, sans-serif',
+    letterSpacing: '.09em',
+    textTransform: 'uppercase',
+    textShadow: '0 1px 4px rgba(0,0,0,.8)',
+    pointerEvents: 'none'
   })
   host.appendChild(tag)
 
   document.body.appendChild(host)
-  const ctx = canvas.getContext('2d')
-
-  const outdoor = data.outdoor
-  const [[bx0, bz0], [bx1, bz1]] = outdoor.bounds
-  const M = 1.5
-  const minX = bx0 - M, maxX = bx1 + M
-  const minZ = bz0 - M, maxZ = bz1 + M
-  const span = Math.max(maxX - minX, maxZ - minZ)
-  const cx = (minX + maxX) / 2
-  const cz = (minZ + maxZ) / 2
-  const scale = SIZE / span
-
-  const sx = (x) => (x - cx) * scale + SIZE / 2
-  const sz = (z) => (z - cz) * scale + SIZE / 2
 
   let mode = 'normal'
-  let last = 0
-  let lastPlayer = null
-  let selectAnchors = []
-  let selectedId = null
-  let onConfirmCb = null
+  let select = null
+  let playerRef = null
+  let builtZone = null
+  let arrow = null
+  let markers = []
+  let pulseT = 0
+  let selectToken = 0
+  let lastDraw = 0
+  let playerCam = null
 
-  function roundedRect(c, x, y, w, h, r) {
-    c.beginPath()
-    c.moveTo(x + r, y)
-    c.arcTo(x + w, y, x + w, y + h, r)
-    c.arcTo(x + w, y + h, x, y + h, r)
-    c.arcTo(x, y + h, x, y, r)
-    c.arcTo(x, y, x + w, y, r)
-    c.closePath()
+  /* ---------------- 坐标 ---------------- */
+  function makeMap(view) {
+    const pad = 16
+    const spanX = view.maxX - view.minX
+    const spanZ = view.maxZ - view.minZ
+    const s = Math.min((SIZE - pad * 2) / spanX, (SIZE - pad * 2) / spanZ)
+    const cx = (view.minX + view.maxX) / 2
+    const cz = (view.minZ + view.maxZ) / 2
+    return {
+      s,
+      tx: (x) => SIZE / 2 + (x - cx) * s,
+      tz: (z) => SIZE / 2 + (z - cz) * s
+    }
   }
 
-  function drawBase() {
-    ctx.clearRect(0, 0, SIZE, SIZE)
-    ctx.fillStyle = '#0e1116'
-    ctx.fillRect(0, 0, SIZE, SIZE)
+  function outdoorView() {
+    const [[x0, z0], [x1, z1]] = data.outdoor.bounds
+    const m = 2.4
+    return { minX: x0 - m, maxX: x1 + m, minZ: z0 - m, maxZ: z1 + m }
+  }
 
-    ctx.fillStyle = '#202b38'
-    ctx.fillRect(sx(bx0), sz(bz0), (bx1 - bx0) * scale, (bz1 - bz0) * scale)
+  function roomView(room) {
+    const m = /^room_([\d.]+)x([\d.]+)x/.exec(room.shell)
+    const w = m ? +m[1] : 10
+    const d = m ? +m[2] : 8
+    return { minX: -w / 2 - 0.8, maxX: w / 2 + 0.8, minZ: -d / 2 - 0.8, maxZ: d / 2 + 0.8 }
+  }
 
-    for (const b of outdoor.buildings || []) {
+  /* ---------------- 数据查询 ---------------- */
+  const doors = (data.outdoor.props || []).filter((p) => p.type === 'door')
+
+  function doorForAnchor(id) {
+    return doors.find((p) => p.to === id) || null
+  }
+
+  function anchorMapPoint(a) {
+    if (a.id === 'a_plaza') return { x: a.pos.x, z: a.pos.z }
+    const door = doorForAnchor(a.id)
+    if (door) return { x: door.pos[0], z: door.pos[2] }
+    if (a.zone === 'outdoor') return { x: a.pos.x, z: a.pos.z }
+    const room = (data.rooms || []).find((r) => r.id === a.zone)
+    if (room) return { x: room.origin[0], z: room.origin[2] }
+    return { x: a.pos.x, z: a.pos.z }
+  }
+
+  /* ---------------- 绘制基座 ---------------- */
+  function clear(g) {
+    while (g.firstChild) g.removeChild(g.firstChild)
+  }
+
+  function rect(g, x, z, w, d, r, fill, stroke, strokeW = 1, extra = {}) {
+    const n = svgEl('path', { d: roundedPath(x, z, w, d, r), fill, stroke, 'stroke-width': strokeW, ...extra }, g)
+    return n
+  }
+
+  function drawOutdoorBase(map) {
+    const [[x0, z0], [x1, z1]] = data.outdoor.bounds
+    // 底色 / 广场铺装
+    rect(baseG, map.tx(x0), map.tz(z0), (x1 - x0) * map.s, (z1 - z0) * map.s, 5, '#1c2734', 'rgba(120,142,166,.35)', 1)
+
+    // 道路 / 广场连线：由数据里的锚点和门生成，不手画
+    const plaza = (data.outdoor.anchors || []).find((a) => a.id === 'a_plaza') || { pos: [0, 0, 6] }
+    const roadG = svgEl('g', { stroke: '#4f7d9c', 'stroke-width': 2.2, 'stroke-linecap': 'round', opacity: .9 }, baseG)
+    for (const p of data.outdoor.props || []) {
+      if (!['door', 'gate'].includes(p.type)) continue
+      svgEl('path', {
+        d: `M${map.tx(plaza.pos[0])},${map.tz(plaza.pos[2])} L${map.tx(p.pos[0])},${map.tz(p.pos[2])}`,
+        'stroke-dasharray': p.type === 'gate' ? '3 3' : '0'
+      }, roadG)
+    }
+    // 广场中心环形
+    svgEl('ellipse', {
+      cx: map.tx(plaza.pos[0]),
+      cy: map.tz(plaza.pos[2]),
+      rx: 10,
+      ry: 10,
+      fill: 'none',
+      stroke: '#5d8fb0',
+      'stroke-width': 1.6,
+      opacity: .9
+    }, baseG)
+
+    // 建筑：直接读 world.json 的矩形
+    for (const b of data.outdoor.buildings || []) {
       const [w, , d] = b.size
-      const x = sx(b.pos[0] - w / 2)
-      const y = sz(b.pos[2] - d / 2)
-      ctx.fillStyle = '#39465a'
-      roundedRect(ctx, x, y, w * scale, d * scale, 6)
-      ctx.fill()
-      ctx.strokeStyle = '#6d7f96'
-      ctx.lineWidth = 2
-      ctx.stroke()
+      rect(baseG, map.tx(b.pos[0] - w / 2), map.tz(b.pos[2] - d / 2), w * map.s, d * map.s, 2.5, '#334358', '#7b90aa', 1.2)
     }
 
-    for (const p of outdoor.props || []) {
-      if (!['tree', 'bench', 'gate'].includes(p.type)) continue
-      const x = sx(p.pos[0]), y = sz(p.pos[2])
+    // 树 / 长椅 / 闸机
+    for (const p of data.outdoor.props || []) {
       if (p.type === 'tree') {
-        ctx.fillStyle = 'rgba(96,146,104,.95)'
-        ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI * 2); ctx.fill()
+        svgEl('circle', { cx: map.tx(p.pos[0]), cy: map.tz(p.pos[2]), r: 4.4, fill: 'rgba(88,132,94,.75)' }, baseG)
       } else if (p.type === 'bench') {
-        ctx.fillStyle = 'rgba(160,132,94,.95)'
-        ctx.fillRect(x - 6, y - 2.5, 12, 5)
-      } else {
-        ctx.strokeStyle = 'rgba(120,200,255,.85)'
-        ctx.lineWidth = 2
-        ctx.beginPath(); ctx.moveTo(x - 7, y); ctx.lineTo(x + 7, y); ctx.stroke()
+        rect(baseG, map.tx(p.pos[0]) - 4, map.tz(p.pos[2]) - 2, 8, 4, 1, 'rgba(156,128,92,.9)', 'none', 0)
+      } else if (p.type === 'gate') {
+        svgEl('path', {
+          d: `M${map.tx(p.pos[0]) - 7},${map.tz(p.pos[2])} L${map.tx(p.pos[0]) + 7},${map.tz(p.pos[2])}`,
+          stroke: '#79c6ff',
+          'stroke-width': 2,
+          'stroke-linecap': 'round'
+        }, baseG)
       }
     }
 
-    for (const p of outdoor.props || []) {
-      if (p.type !== 'door') continue
-      const x = sx(p.pos[0]), y = sz(p.pos[2])
-      ctx.fillStyle = '#ffd166'
-      ctx.fillRect(x - 8, y - 6, 16, 12)
+    // 门：亮色小矩形（anchors 图标画在 dynamic 层）
+    for (const p of doors) {
+      rect(baseG, map.tx(p.pos[0]) - 4, map.tz(p.pos[2]) - 3, 8, 6, 1.2, '#c9a86a', 'rgba(255,225,160,.65)', 0.8)
     }
   }
 
-  function drawPlayer(player) {
-    if (!player) return
-    const zone = player.zone
-    if (zone === 'outdoor') {
-      const x = sx(player.pos.x), y = sz(player.pos.z)
-      ctx.save()
-      ctx.translate(x, y)
-      ctx.rotate(-player.yaw)
-      ctx.fillStyle = '#78c8ff'
-      ctx.strokeStyle = 'rgba(10,14,20,.9)'
-      ctx.lineWidth = 2
-      ctx.beginPath()
-      ctx.moveTo(0, -11)
-      ctx.lineTo(-7, 8)
-      ctx.lineTo(7, 8)
-      ctx.closePath()
-      ctx.fill(); ctx.stroke()
-      ctx.restore()
+  function drawRoomBase(room, map) {
+    const m = /^room_([\d.]+)x([\d.]+)x/.exec(room.shell)
+    const w = m ? +m[1] : 10
+    const d = m ? +m[2] : 8
+    rect(baseG, map.tx(-w / 2), map.tz(-d / 2), w * map.s, d * map.s, 3, '#1c2734', 'rgba(120,142,166,.5)', 1.2)
+
+    // 室内道具：直接读 room.props（桌椅 / 讲台）
+    for (const p of room.props || []) {
+      if (p.type === 'desk') {
+        rect(baseG, map.tx(p.pos[0]) - 4.5, map.tz(p.pos[2]) - 3, 9, 6, 1.2, '#594a38', 'rgba(180,150,110,.65)', 0.7)
+      } else if (p.type === 'podium') {
+        rect(baseG, map.tx(p.pos[0]) - 7, map.tz(p.pos[2]) - 3, 14, 6, 1, '#44503f', 'rgba(150,190,160,.6)', 0.7)
+      }
+    }
+
+    // 门洞：普通房间在前墙中间，连廊两端都通
+    const doorW = 2.2 * map.s
+    if (room.kind === 'corridor') {
+      rect(baseG, map.tx(-doorW / 2), map.tz(-d / 2) - 1, doorW, 2, 0.5, '#ffd166', 'none', 0)
+      rect(baseG, map.tx(-doorW / 2), map.tz(d / 2) - 1, doorW, 2, 0.5, '#ffd166', 'none', 0)
     } else {
-      ctx.fillStyle = 'rgba(14,17,22,.58)'
-      ctx.fillRect(0, 0, SIZE, SIZE)
+      rect(baseG, map.tx(-doorW / 2), map.tz(d / 2) - 1, doorW, 2, 0.5, '#ffd166', 'none', 0)
+    }
+    svgEl('text', {
+      x: SIZE / 2,
+      y: 26,
+      'text-anchor': 'middle',
+      fill: 'rgba(220,232,244,.9)',
+      'font-size': 12,
+      'font-weight': 700,
+      'letter-spacing': '.08em'
+    }, baseG).textContent = ZONE_LABEL[room.id] || room.id
+  }
 
-      const door = (outdoor.props || []).find(
-        (p) => p.type === 'door' && world.anchors.get(p.to)?.zone === zone
-      )
-      if (door) {
-        const x = sx(door.pos[0]), y = sz(door.pos[2])
-        ctx.strokeStyle = '#78c8ff'
-        ctx.lineWidth = 3
-        ctx.beginPath(); ctx.arc(x, y, 12, 0, Math.PI * 2); ctx.stroke()
-        ctx.fillStyle = '#78c8ff'
-        ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fill()
+  function drawAnchorIcons(points, withLabels = false) {
+    for (let i = 0; i < points.length; i++) {
+      const p = points[i]
+      const color = ANCHOR_COLOR[p.anchor.id] || '#ffffff'
+      const g = svgEl('g', { 'data-anchor-index': i }, dynG)
+      svgEl('circle', { cx: p.x, cy: p.y, r: 5.2, fill: color, stroke: 'rgba(8,12,18,.95)', 'stroke-width': 1.2 }, g)
+      svgEl('circle', { cx: p.x, cy: p.y, r: 2, fill: '#10151c' }, g)
+      if (withLabels) {
+        const t = svgEl('text', {
+          x: p.x,
+          y: p.y - 10,
+          'text-anchor': 'middle',
+          fill: 'rgba(240,245,250,.95)',
+          'font-size': 9,
+          'font-weight': 700,
+          'letter-spacing': '.04em',
+          'paint-order': 'stroke',
+          stroke: 'rgba(6,9,14,.9)',
+          'stroke-width': 2.4
+        }, g)
+        t.textContent = p.anchor.label || p.anchor.id
       }
-
-      ctx.fillStyle = 'rgba(20,26,34,.95)'
-      roundedRect(ctx, SIZE / 2 - 100, 40, 200, 44, 10)
-      ctx.fill()
-      ctx.strokeStyle = 'rgba(120,200,255,.75)'
-      ctx.lineWidth = 2
-      ctx.stroke()
-      ctx.fillStyle = 'rgba(226,236,246,.95)'
-      ctx.font = '600 21px system-ui, sans-serif'
-      ctx.textAlign = 'center'
-      ctx.fillText(ZONE_LABEL[zone] || zone, SIZE / 2, 69)
+      g.style.cursor = 'pointer'
+      g.addEventListener('click', (e) => {
+        e.stopPropagation()
+        if (!select) return
+        if (select.index === i) confirm()
+        else pick(i)
+      })
     }
   }
 
-  function drawSelect() {
-    ctx.fillStyle = 'rgba(6,8,12,.72)'
-    ctx.fillRect(0, 0, SIZE, SIZE)
-
-    selectAnchors.forEach((a, i) => {
-      const x = sx(a.mx), y = sz(a.mz)
-      const sel = a.id === selectedId
-      const r = sel ? 32 : 26
-
-      ctx.beginPath()
-      ctx.arc(x, y, r, 0, Math.PI * 2)
-      ctx.fillStyle = sel ? 'rgba(255,255,255,.18)' : 'rgba(20,26,34,.85)'
-      ctx.fill()
-      ctx.strokeStyle = sel ? 'rgba(255,255,255,.98)' : 'rgba(200,214,230,.65)'
-      ctx.lineWidth = sel ? 4 : 2.5
-      ctx.stroke()
-
-      ctx.fillStyle = sel ? '#ffffff' : '#cfdae8'
-      ctx.font = '700 24px system-ui, sans-serif'
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      ctx.fillText(String(i + 1), x, y + 1)
-    })
-
-    // 图例：避免名字堆在门口
-    const rowH = 36
-    const boxW = 260
-    const boxH = selectAnchors.length * rowH + 24
-    const bx = 24
-    const by = SIZE - boxH - 24
-    ctx.fillStyle = 'rgba(12,16,22,.92)'
-    roundedRect(ctx, bx, by, boxW, boxH, 12)
-    ctx.fill()
-    ctx.strokeStyle = 'rgba(200,214,230,.32)'
-    ctx.lineWidth = 2
-    ctx.stroke()
-
-    selectAnchors.forEach((a, i) => {
-      const ty = by + 20 + i * rowH
-      const sel = a.id === selectedId
-      ctx.textAlign = 'left'
-      ctx.textBaseline = 'middle'
-      ctx.fillStyle = sel ? '#ffd166' : 'rgba(160,176,196,.85)'
-      ctx.font = '700 18px system-ui, sans-serif'
-      ctx.fillText(String(i + 1), bx + 18, ty)
-      ctx.fillStyle = sel ? '#ffffff' : 'rgba(206,218,232,.9)'
-      ctx.font = '500 17px system-ui, sans-serif'
-      ctx.fillText(a.label, bx + 48, ty)
-    })
-    ctx.textBaseline = 'alphabetic'
+  function drawPlayerArrow() {
+    arrow = svgEl('g', {}, dynG)
+    svgEl('polygon', {
+      points: '0,-9 -6.5,7 0,4.2 6.5,7',
+      fill: '#8fd4ff',
+      stroke: 'rgba(6,10,16,.95)',
+      'stroke-width': 1.4,
+      'stroke-linejoin': 'round'
+    }, arrow)
+    return arrow
   }
 
   function drawFrame() {
-    ctx.strokeStyle = 'rgba(220,230,240,.35)'
-    ctx.lineWidth = 2
-    roundedRect(ctx, 1, 1, SIZE - 2, SIZE - 2, 22)
-    ctx.stroke()
-
-    ctx.fillStyle = 'rgba(210,222,236,.9)'
-    ctx.font = '700 18px system-ui, sans-serif'
-    ctx.textAlign = 'center'
-    ctx.fillText('N', SIZE - 26, 34)
-    ctx.beginPath()
-    ctx.moveTo(SIZE - 26, 40)
-    ctx.lineTo(SIZE - 31, 54)
-    ctx.lineTo(SIZE - 21, 54)
-    ctx.closePath()
-    ctx.fill()
+    clear(frameG)
+    svgEl('path', {
+      d: roundedPath(1.5, 1.5, SIZE - 3, SIZE - 3, 15),
+      fill: 'none',
+      stroke: 'rgba(220,232,244,.35)',
+      'stroke-width': 1.2
+    }, frameG)
+    // N + 小三角
+    const n = svgEl('text', {
+      x: SIZE - 22,
+      y: 24,
+      'text-anchor': 'middle',
+      fill: 'rgba(220,232,244,.92)',
+      'font-size': 12,
+      'font-weight': 800
+    }, frameG)
+    n.textContent = 'N'
+    svgEl('path', { d: `M${SIZE - 22},29 l-3,7 h6 Z`, fill: 'rgba(220,232,244,.8)' }, frameG)
   }
 
-  function render(force = false) {
-    const now = performance.now()
-    if (!force && now - last < 90) return
-    last = now
+  /* ---------------- 构建 ---------------- */
+  function currentSelectPoints() {
+    if (!select) return []
+    const map = makeMap(outdoorView())
+    return select.anchors.map((a) => {
+      const pt = anchorMapPoint(a)
+      return { anchor: a, x: map.tx(pt.x), y: map.tz(pt.z) }
+    })
+  }
 
-    drawBase()
-    drawPlayer(lastPlayer)
-    if (mode === 'select') drawSelect()
-    drawFrame()
-
-    if (mode === 'select') {
-      tag.textContent = 'CHOOSE RESPAWN'
+  function buildNormal() {
+    clear(baseG)
+    clear(dynG)
+    markers = []
+    const zone = playerRef?.zone || 'outdoor'
+    builtZone = zone
+    if (zone === 'outdoor') {
+      const map = makeMap(outdoorView())
+      drawOutdoorBase(map)
+      const points = (world.anchorList || []).map((a) => {
+        const pt = anchorMapPoint(a)
+        return { anchor: a, x: map.tx(pt.x), y: map.tz(pt.z) }
+      })
+      drawAnchorIcons(points, false)
+      drawPlayerArrow()
+      tag.textContent = 'Plaza'
       tag.style.display = 'block'
+      dynG._map = map
     } else {
-      tag.textContent = lastPlayer ? (ZONE_LABEL[lastPlayer.zone] || lastPlayer.zone) : ''
-      tag.style.display = lastPlayer && lastPlayer.zone === 'outdoor' ? 'block' : 'none'
+      const room = (data.rooms || []).find((r) => r.id === zone)
+      if (room) {
+        const map = makeMap(roomView(room))
+        drawRoomBase(room, map)
+        drawPlayerArrow()
+        dynG._map = map
+        tag.textContent = ZONE_LABEL[zone] || zone
+        tag.style.display = 'block'
+      } else {
+        // 未知室内 zone：退回户外图
+        const map = makeMap(outdoorView())
+        drawOutdoorBase(map)
+        drawPlayerArrow()
+        dynG._map = map
+        tag.style.display = 'none'
+      }
+    }
+    drawFrame()
+  }
+
+  function buildSelect() {
+    clear(baseG)
+    clear(dynG)
+    markers = []
+    const map = makeMap(outdoorView())
+    drawOutdoorBase(map)
+    const points = currentSelectPoints()
+    for (let i = 0; i < points.length; i++) {
+      const p = points[i]
+      const color = ANCHOR_COLOR[p.anchor.id] || '#ffffff'
+      const g = svgEl('g', { 'data-index': i }, dynG)
+      const ring = svgEl('circle', {
+        cx: p.x,
+        cy: p.y,
+        r: 8,
+        fill: 'none',
+        stroke: color,
+        'stroke-width': 2,
+        opacity: .75
+      }, g)
+      const dot = svgEl('circle', {
+        cx: p.x,
+        cy: p.y,
+        r: 5.2,
+        fill: color,
+        stroke: 'rgba(8,12,18,.95)',
+        'stroke-width': 1.2
+      }, g)
+      // 透明大热区：图标很小也能点
+      svgEl('circle', { cx: p.x, cy: p.y, r: 15, fill: 'transparent' }, g)
+      const label = svgEl('text', {
+        x: p.x,
+        y: p.y - 15,
+        'text-anchor': 'middle',
+        fill: 'rgba(240,245,250,.98)',
+        'font-size': 10,
+        'font-weight': 700,
+        'letter-spacing': '.04em',
+        'paint-order': 'stroke',
+        stroke: 'rgba(6,9,14,.95)',
+        'stroke-width': 3
+      }, g)
+      label.textContent = p.anchor.label || p.anchor.id
+      label.setAttribute('opacity', '0')
+      g.style.cursor = 'pointer'
+      g.addEventListener('click', (e) => {
+        e.stopPropagation()
+        if (!select) return
+        if (select.index === i) confirm()
+        else pick(i)
+      })
+      markers.push({ g, ring, dot, label, x: p.x, y: p.y, color })
+    }
+    // 顶部提示
+    const hint = svgEl('text', {
+      x: SIZE / 2,
+      y: SIZE - 16,
+      'text-anchor': 'middle',
+      fill: 'rgba(225,235,245,.9)',
+      'font-size': 8.5,
+      'letter-spacing': '.04em',
+      'paint-order': 'stroke',
+      stroke: 'rgba(6,9,14,.9)',
+      'stroke-width': 2.4
+    }, dynG)
+    hint.textContent = '↑↓ / 1-4  ·  Enter / 双击确认'
+    tag.style.display = 'none'
+    drawFrame()
+    paintSelection()
+  }
+
+  /* ---------------- 选择 ---------------- */
+  function paintSelection() {
+    if (!select) return
+    for (let i = 0; i < markers.length; i++) {
+      const m = markers[i]
+      const sel = i === select.index
+      m.dot.setAttribute('r', sel ? 6.4 : 5)
+      m.ring.setAttribute('r', sel ? 13 : 8)
+      m.ring.setAttribute('opacity', sel ? '1' : '.55')
+      m.label.setAttribute('opacity', sel ? '1' : '0')
+      m.g.setAttribute('transform', sel ? `translate(${m.x} ${m.y}) scale(1.12) translate(${-m.x} ${-m.y})` : '')
     }
   }
 
-  function update(player, force = false) {
-    lastPlayer = player
-    if (mode === 'select') return
-    render(force)
+  function pick(i) {
+    if (!select) return
+    if (i < 0 || i >= select.anchors.length) return
+    select.index = i
+    paintSelection()
   }
 
-  function hitTest(clientX, clientY) {
-    const rect = host.getBoundingClientRect()
-    const x = ((clientX - rect.left) / rect.width) * SIZE
-    const y = ((clientY - rect.top) / rect.height) * SIZE
-    let best = null
-    let bestD = Infinity
-    for (const a of selectAnchors) {
-      const d = Math.hypot(sx(a.mx) - x, sz(a.mz) - y)
-      if (d < bestD) { bestD = d; best = a }
-    }
-    return bestD <= 52 ? best : null
+  function move(delta) {
+    if (!select) return
+    pick((select.index + delta + select.anchors.length) % select.anchors.length)
   }
 
-  host.addEventListener('click', (e) => {
-    if (mode !== 'select') return
-    const a = hitTest(e.clientX, e.clientY)
-    if (!a) return
-    if (a.id === selectedId) {
-      onConfirmCb && onConfirmCb(a)
-      return
+  function confirm() {
+    if (!select || select.confirmed) return
+    select.confirmed = true
+    const anchor = select.anchors[select.index]
+    const cb = select.onConfirm
+    endSelect()
+    if (cb) cb(anchor)
+  }
+
+  function beginSelect(anchors, defaultId, onConfirm) {
+    select = {
+      anchors: anchors.slice(0, 4),
+      index: Math.max(0, anchors.findIndex((a) => a.id === defaultId)),
+      onConfirm,
+      confirmed: false,
+      token: selectToken + 1
     }
-    selectedId = a.id
-    render(true)
-  })
+    if (!select.anchors.length) return
+    setMode('select')
+    // 死亡时地图展示户外总览，不按当前 zone 重建
+    buildSelect()
+    const token = ++selectToken
+    const pulse = () => {
+      if (!select || select.token !== token) return
+      pulseT = performance.now() / 1000
+      const k = (Math.sin(pulseT * 5) + 1) / 2
+      for (let i = 0; i < markers.length; i++) {
+        const m = markers[i]
+        const sel = i === select.index
+        const base = sel ? 13 : 8
+        m.ring.setAttribute('r', (base + k * (sel ? 2.6 : 1.3)).toFixed(2))
+        m.ring.setAttribute('opacity', ((sel ? 0.75 : 0.38) + k * 0.25).toFixed(2))
+        m.g.setAttribute('data-selected', sel ? '1' : '0')
+      }
+      requestAnimationFrame(pulse)
+    }
+    requestAnimationFrame(pulse)
+  }
+
+  function endSelect() {
+    select = null
+    setMode('normal')
+    if (playerRef) buildNormal()
+  }
 
   function setMode(next) {
     mode = next
-    if (next === 'select') {
-      host.style.width = '520px'
-      host.style.height = '520px'
-      host.style.borderColor = 'rgba(255,255,255,.95)'
-      host.style.pointerEvents = 'auto'
-      host.style.cursor = 'pointer'
+    const big = mode === 'select'
+    host.style.width = big ? '320px' : `${SIZE}px`
+    host.style.height = big ? '320px' : `${SIZE}px`
+    host.style.borderColor = big ? 'rgba(255,255,255,.95)' : 'rgba(220,232,244,.62)'
+    host.style.pointerEvents = big ? 'auto' : 'none'
+  }
+
+  function update(player, camera = null) {
+    playerRef = player
+    playerCam = camera
+    const now = performance.now()
+    if (mode === 'select') {
+      // 选点时不按 zone 重建；脉冲由 beginSelect 的 rAF 处理
+      return
+    }
+    if (!builtZone || builtZone !== player.zone) buildNormal()
+    if (!arrow) return
+
+    let x
+    let z
+    let yaw = player.yaw
+    if (player.zone === 'outdoor') {
+      x = player.pos.x
+      z = player.pos.z
     } else {
-      host.style.width = '220px'
-      host.style.height = '220px'
-      host.style.borderColor = 'rgba(220,230,240,.55)'
-      host.style.pointerEvents = 'none'
-      host.style.cursor = 'default'
-      selectAnchors = []
-      selectedId = null
-      onConfirmCb = null
+      const room = (data.rooms || []).find((r) => r.id === player.zone)
+      if (!room) return
+      x = player.pos.x - room.origin[0]
+      z = player.pos.z - room.origin[2]
+    }
+    const map = dynG._map
+    if (!map) return
+    const px = map.tx(x)
+    const pz = map.tz(z)
+    arrow.setAttribute('transform', `translate(${px} ${pz}) rotate(${(-yaw * 180) / Math.PI})`)
+    if (now - lastDraw > 80) {
+      lastDraw = now
+      // 玩家每帧都动，箭头逐帧更新；这里只节流不需要的东西，保持简单
     }
   }
 
-  const DOOR_FALLBACK = {
-    classroom: [-3, -6.2],
-    library: [-6.5, -6.2],
-    corridor: [-0.5, -6.2]
-  }
-
-  function setSelectMode(anchors, onConfirm) {
-    selectAnchors = anchors.map((a) => {
-      let mx = a.pos.x
-      let mz = a.pos.z
-      if (a.zone !== 'outdoor') {
-        const door = (outdoor.props || []).find((p) => p.type === 'door' && p.to === a.id)
-        if (door) {
-          mx = door.pos[0]
-          mz = door.pos[2]
-        } else if (DOOR_FALLBACK[a.zone]) {
-          mx = DOOR_FALLBACK[a.zone][0]
-          mz = DOOR_FALLBACK[a.zone][1]
-        }
-      }
-      return { ...a, mx, mz }
-    })
-    selectedId = null
-    onConfirmCb = onConfirm || null
-    setMode('select')
-    render(true)
-  }
+  drawFrame()
+  setMode('normal')
 
   return {
     update,
     setMode,
-    setSelectMode,
+    beginSelect,
+    endSelect,
+    move,
+    pick,
+    confirm,
     el: host,
-    get mode() { return mode }
+    get mode() {
+      return mode
+    },
+    get selected() {
+      return select ? select.anchors[select.index] : null
+    }
   }
 }

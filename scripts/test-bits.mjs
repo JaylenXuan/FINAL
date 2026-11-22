@@ -19,7 +19,12 @@ function makeEnv({ zone = 'outdoor' } = {}) {
   const world = { zones: { outdoor: { bounds: { min: { x: -10, z: -10 }, max: { x: 10, z: 10 } } } }, anchors: new Map() }
   const chaser = {
     onCapture: null,
+    onTimeout: null,
     spawn: (type, z, from) => log.spawned.push({ type, z, from }),
+    spawnAhead: (target, dist) => {
+      log.spawnedFrom = { target, dist }
+      return { x: 0, z: 0 }
+    },
     farEnd: () => ({ x: -10, z: -10 }),
     despawn: () => {},
     abandon: () => { log.abandoned++ }
@@ -60,6 +65,7 @@ function makeEnv({ zone = 'outdoor' } = {}) {
   assert.deepEqual(env.log.deaths, [], '触发不等于死亡')
   assert.equal(env.log.stars.at(-1), 1, '触发立刻 +1 星')
   assert.equal(env.bits.getPhase('phone_walk'), 'chase')
+  assert.equal(env.log.spawnedFrom?.dist, 10, '刷点应走前方 10m 采样')
   console.log('✓ phone_walk 计时 / 加星 / 生成追逐者')
 
   // 走动中断要清零
@@ -88,6 +94,29 @@ function makeEnv({ zone = 'outdoor' } = {}) {
   console.log('✓ 被抓发出 death(PHONE_CAUGHT)')
 }
 
+/* 2.5 追逐超时 / 进门传送后结束追逐：星保留、bit 复位 */
+{
+  const env = makeEnv()
+  env.player.phoneUp = true
+  env.player.moving = true
+  env.step(4.2) // 触发追逐，+1 星
+  assert.equal(env.bits.getPhase('phone_walk'), 'chase')
+  assert.equal(env.bits.stars, 1)
+  env.chaser.onTimeout()
+  assert.equal(env.bits.getPhase('phone_walk'), 'idle', '12 秒超时应复位 bit')
+  assert.equal(env.bits.stars, 1, '超时星应保留')
+
+  const env2 = makeEnv()
+  env2.player.phoneUp = true
+  env2.player.moving = true
+  env2.step(4.2)
+  env2.bits.finishEscape()
+  assert.equal(env2.bits.getPhase('phone_walk'), 'idle', '传送后立即结束追逐')
+  assert.equal(env2.log.abandoned, 1, '传送后校长放弃')
+  assert.equal(env2.bits.stars, 1, '逃跑成功星保留')
+  console.log('✓ 追逐超时 / 进门传送后都复位且保星')
+}
+
 /* 3. class_sleep：进教室醒来，3 秒后被点名 */
 {
   const env = makeEnv({ zone: 'classroom' })
@@ -114,7 +143,7 @@ function makeEnv({ zone = 'outdoor' } = {}) {
   answer('Digit2')
   assert.equal(env.log.deaths.length, 1, '答错应直接死亡')
   assert.equal(env.log.deaths[0].line, 'CLASS_KICKED')
-  console.log('✓ class_sleep 答错一次 → 直接逐出')
+  console.log('✓ class_sleep 答错一次 → 直接死亡')
 }
 
 /* 5. 答对不扣星，bit 结束 */

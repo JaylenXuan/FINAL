@@ -8,6 +8,7 @@ import { Input } from './player/input.js'
 import { Player } from './player/player.js'
 import { CameraRig } from './player/camera.js'
 import { Chaser } from './npc/chaser.js'
+import { Classmates } from './npc/classmates.js'
 import { Bits } from './bits/bits.js'
 import { HUD } from './ui/hud.js'
 import { createMinimap } from './ui/minimap.js'
@@ -28,6 +29,16 @@ async function main() {
     loadJSON('/data/bits.json'),
     loadJSON('/data/lines.json')
   ])
+
+  // 题干和选项以 data/lines.json 为唯一内容源，index.html 只留兜底文案
+  {
+    const q = document.querySelector('#classq .q')
+    if (q && lines.CLASS_Q?.en) q.textContent = lines.CLASS_Q.en
+    document.querySelectorAll('#classq .opt span').forEach((el, i) => {
+      const copy = lines[`CLASS_OPT_${i + 1}`]
+      if (copy?.en) el.textContent = copy.en
+    })
+  }
 
   /* ---------- 渲染基础 ---------- */
   const renderer = new THREE.WebGLRenderer({ antialias: true })
@@ -76,8 +87,19 @@ async function main() {
   const chaser = new Chaser(scene, world)
   const director = new Director({ bus, ui: blackout, audio, camera: rig, lines })
   const bits = new Bits({ data: bitsData, world, player, chaser, ui, audio, lines, state, bus, input })
+  const classmates = new Classmates({ scene, data: worldData, world, player, bits, state, ui, audio, lines })
+
+  // 课堂题选项：鼠标点击 = 按对应数字键（小键盘/主键盘都支持，键盘在 bits.readAnswer 里）
+  document.querySelectorAll('#classq .opt').forEach((el) => {
+    el.addEventListener('click', () => {
+      if (!bits.questionOpen) return
+      audio.select()
+      bits.answer(Number(el.dataset.opt))
+    })
+  })
 
   let lastAnchorId = 'a_classroom'
+  let escape = null // 进门 0.5 秒演出：{ t, anchorId }
 
   function applyZoneFx(zoneId) {
     // 房间摆在 x=100 之外，室外雾会把室内一起吃掉，所以按区域开关
@@ -94,14 +116,38 @@ async function main() {
     if (withFade) director.play('respawn')
   }
 
-  function tryInteract() {
-    const it = world.interactables.find((x) => {
+  function findInteractable() {
+    return world.interactables.find((x) => {
       if (x.zone !== player.zone) return false
       const dx = x.pos.x - player.pos.x
       const dz = x.pos.z - player.pos.z
       return dx * dx + dz * dz < x.radius * x.radius
     })
+  }
+
+  /** 被追时进门：暂停输入 0.5s → 校长停在门口 2m、转身 → 播 PHONE_ESCAPED → 淡出传送 */
+  function startDoorEscape(it) {
+    const door = it.pos
+    let dx = player.pos.x - door.x
+    let dz = player.pos.z - door.z
+    const len = Math.hypot(dx, dz) || 1
+    dx /= len
+    dz /= len
+    chaser.holdAt(door.x + dx * 2, door.z + dz * 2, player.pos.x, player.pos.z)
+    ui.subtitle(lines.PHONE_ESCAPED, 1.6)
+    audio.alarm()
+    escape = { t: 0.5, anchorId: it.anchorId }
+    input.enabled = false
+  }
+
+  function tryInteract() {
+    const it = findInteractable()
     if (!it) return
+    // 追逐中按 E 进门：先演 0.5 秒，再走原来的淡出/传送；传送后直接结束追逐（星保留）
+    if (state.is(S.PLAY) && bits.getPhase('phone_walk') === 'chase' && player.zone === 'outdoor') {
+      startDoorEscape(it)
+      return
+    }
     audio.select()
     goTo(it.anchorId)
   }
@@ -117,13 +163,14 @@ async function main() {
       ? (lines.WRONG_TITLE?.en || 'WRONG')
       : (lines.CAUGHT_TITLE?.en || 'CAUGHT')
     minimap.setMode('select')
-    director.play('caught', { title })
+    director.play('caught', { title, sub: payload?.reason === 'class' ? '' : 'RECORDED' })
   })
 
   bus.on('director:done', ({ name }) => {
     if (name === 'caught') {
       state.set(S.ANCHOR)
-      blackout.showPicker(world.anchorList, lastAnchorId, (anchor) => {
+      // 死亡选点只亮小地图：锚点脉冲 + 键鼠选择，不再弹独立列表
+      minimap.beginSelect(world.anchorList, lastAnchorId, (anchor) => {
         audio.confirm()
         lastAnchorId = anchor.id
         state.set(S.WAKEUP)
@@ -132,14 +179,7 @@ async function main() {
         applyZoneFx(anchor.zone)
         ui.setZone(anchor.label)
         chaser.despawn()
-        director.play('wake_up', { full: anchor.id === 'a_classroom' })
-      }, { showList: false })
-      minimap.setSelectMode(world.anchorList, (anchor) => {
-        const i = world.anchorList.findIndex((x) => x.id === anchor.id)
-        if (i >= 0) {
-          blackout.pick(i)
-          blackout.confirm()
-        }
+        director.play('wake_up_map')
       })
       return
     }
@@ -147,6 +187,7 @@ async function main() {
       state.set(S.PLAY)
       bits.reset() // 清冷却/相位，星已在死亡时归零
       ui.setPhone(player.phoneUp)
+      minimap.endSelect()
       minimap.setMode('normal')
     }
   })
@@ -178,12 +219,12 @@ async function main() {
 
   if (autoBit) setTimeout(() => bits.force(autoBit), 1600)
 
-  // 布局预览 / 演示兜底：?screen=anchors 直接看选点界面，?spawn=1 在面前放一个校长
+  // 布局预览 / 演示兜底：?screen=anchors 直接看死亡选点地图，?spawn=1 在面前放一个校长
   if (params.get('screen') === 'anchors') {
-    blackout.showPicker(world.anchorList, 'a_classroom', () => {})
-  }
-  if (params.get('screen') === 'mapselect') {
-    minimap.setSelectMode(world.anchorList, () => {})
+    blackout.blackout(lines.CAUGHT_TITLE?.en || 'CAUGHT', 'SELECT ANCHOR')
+    state.set(S.CAUGHT)
+    state.set(S.ANCHOR)
+    minimap.beginSelect(world.anchorList, 'a_classroom', () => {})
   }
   if (params.get('screen') === 'question') {
     ui.showQuestion(true)
@@ -205,7 +246,10 @@ async function main() {
         ui.setPhone(player.phoneUp)
         audio.select()
       }
-      if (input.once('KeyE')) tryInteract()
+      if (input.once('KeyE')) {
+        // 下课后优先和同学聊天；不在聊天范围才走门 / 出口
+        if (!classmates.tryTalk()) tryInteract()
+      }
       if (input.once('KeyF')) bits.force(player.zone === 'classroom' ? 'class_sleep' : 'phone_walk')
       if (input.once('KeyR')) {
         bits.reset({ keepStars: false })
@@ -221,12 +265,12 @@ async function main() {
     if (state.is(S.ANCHOR)) {
       const i = DIGITS.findIndex((c) => input.once(c))
       if (i >= 0 && i < world.anchorList.length) {
-        blackout.pick(i)
+        minimap.pick(i)
         audio.select()
       }
-      if (input.once('ArrowUp')) blackout.move(-1)
-      if (input.once('ArrowDown')) blackout.move(1)
-      if (input.once('Enter')) blackout.confirm()
+      if (input.once('ArrowUp')) minimap.move(-1)
+      if (input.once('ArrowDown')) minimap.move(1)
+      if (input.once('Enter')) minimap.confirm()
     }
   }
 
@@ -235,13 +279,33 @@ async function main() {
       state.update(dt)
       readKeys()
 
-      if (state.is(S.PLAY)) {
+      // 进门 0.5 秒演出：输入冻结、校长停在门口，然后淡出传送并结束追逐
+      if (escape) {
+        escape.t -= dt
+        if (escape.t <= 0) {
+          const anchorId = escape.anchorId
+          escape = null
+          input.enabled = true
+          goTo(anchorId)
+          bits.finishEscape()
+        }
+      } else if (state.is(S.PLAY)) {
         player.update(dt, input)
         bits.update(dt)
         chaser.update(dt, player.pos, player.zone)
       } else if (state.is(S.WAKEUP)) {
         // 醒来过程中允许小幅挪动，但不出手指令
         bits.update(dt)
+      }
+
+      classmates.update(dt, camera)
+      // 靠近门 / 同学时的 E 提示；答题和死亡选点时隐藏
+      if (state.is(S.PLAY) && !bits.questionOpen && !escape) {
+        const talk = classmates.promptText()
+        const near = findInteractable()
+        ui.setPrompt(talk || (near ? near.label : ''))
+      } else {
+        ui.setPrompt('')
       }
 
       director.update(dt)
@@ -251,7 +315,7 @@ async function main() {
     render(alpha, realDt) {
       player.sync(alpha)
       rig.update(realDt, player.pos)
-      minimap.update(player)
+      minimap.update(player, camera)
       renderer.render(scene, camera)
     }
   })
@@ -263,7 +327,7 @@ async function main() {
   })
 
   /* ---------- 演示用调试钩子（控制台可直接调） ---------- */
-  window.__campus = { player, bits, chaser, world, state, director, rig }
+  window.__campus = { player, bits, chaser, world, state, director, rig, minimap, classmates, camera, scene, audio, bus }
 
   renderer.render(scene, camera)
   const bootEl = document.getElementById('boot')

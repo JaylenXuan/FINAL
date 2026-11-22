@@ -1,5 +1,5 @@
 {
-  "meta": { "version": 2, "unit": "meter", "up": "Y" },
+  "meta": { "version": 2.1, "unit": "meter", "up": "Y" },
   "outdoor": {
     "ground": { "size": [26, 26], "material": "paving" },
     "buildings": [
@@ -17,13 +17,17 @@
     ],
     "bounds": [[-10, -10], [10, 10]],
     "anchors": [
-      { "id": "a_plaza", "pos": [0, 0, 6], "yaw": 180 }
+      { "id": "a_plaza", "pos": [0, 0, 6], "yaw": 180 },
+      { "id": "a_out_classroom", "pos": [-3, 0, -4.6], "yaw": 180 },
+      { "id": "a_out_library", "pos": [-6.5, 0, -4.6], "yaw": 180 },
+      { "id": "a_out_corridor", "pos": [-0.5, 0, -4.6], "yaw": 180 }
     ]
   },
   "rooms": [
     {
       "id": "classroom",
       "kind": "room",
+      "exit": "a_out_classroom",
       "shell": "room_10x8x4",
       "origin": [100, 0, 0],
       "props": [
@@ -41,6 +45,7 @@
     {
       "id": "library",
       "kind": "room",
+      "exit": "a_out_library",
       "shell": "room_6x6x4",
       "origin": [200, 0, 0],
       "props": [
@@ -53,6 +58,7 @@
     {
       "id": "corridor",
       "kind": "corridor",
+      "exit": "a_out_corridor",
       "shell": "room_3x8x3.8",
       "origin": [300, 0, 0],
       "props": [],

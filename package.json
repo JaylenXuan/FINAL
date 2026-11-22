@@ -9,6 +9,7 @@
     "preview": "vite preview --host 127.0.0.1 --port 4173"
   },
   "dependencies": {
+    "@pixiv/three-vrm": "^3.5.5",
     "three": "0.169.0"
   },
   "devDependencies": {

@@ -28,6 +28,12 @@ export class Bits {
     this.fleeTimer = 0 // 玩家躲进房间后，校长放弃的倒计时
 
     this.chaser.onCapture = () => this.onCaught('phone_walk')
+    // 追逐上限 12 秒：超时校长放弃，星保留，bit 复位
+    this.chaser.onTimeout = () => {
+      this.setPhase('phone_walk', 'idle')
+      this.timers.set('phone_walk', 0)
+      this.fleeTimer = 0
+    }
 
     this.bus.on('state:enter', ({ state: st }) => {
       if (st === S.WAKEUP) this.armClassSleep()
@@ -119,7 +125,8 @@ export class Bits {
     this.ui.subtitle(this.lines.PHONE_WARN, 1.4)
     this.audio.alarm()
 
-    const from = this.chaser.farEnd('outdoor', this.player.pos)
+    // PATCH-v2.1：玩家前方 10m 的 16 点采样，排除建筑和越界
+    const from = this.chaser.spawnAhead(this.player, 10)
     this.chaser.spawn(bit.actor.type, 'outdoor', from)
     this.ui.setZone('Plaza')
   }
@@ -135,8 +142,8 @@ export class Bits {
     if (phase === 'done') return
 
     if (this.questionOpen) {
-      this.answerWait += dt
-      if (this.answerWait > 0.25) this.readAnswer()
+      // 键盘/小键盘每帧都读：pressed 每帧结束会清空，延迟读会吞掉按得快的人
+      this.readAnswer()
       return
     }
 
@@ -183,17 +190,11 @@ export class Bits {
       return
     }
 
-    const n = this.addStar(bit.outcome.starsPerWrong || 1)
+    this.addStar(bit.outcome.starsPerWrong || 1)
     this.ui.subtitle(this.lines.CLASS_WRONG, 1.2)
-
-    if (n >= (bit.outcome.threshold || 3)) {
-      this.setPhase(bit.id, 'done')
-      this.bus.emit('death', { line: bit.outcome.line, reason: 'class' })
-      return
-    }
-    // 回到「再被点名」
-    this.timers.set(bit.id, 0)
-    this.setPhase(bit.id, 'idle')
+    // 一错直接除名：不再回 idle 循环（bits.json threshold = 1）
+    this.setPhase(bit.id, 'done')
+    this.bus.emit('death', { line: bit.outcome.line, reason: 'class' })
   }
 
   /* ---------------- 被抓 ---------------- */
@@ -201,6 +202,15 @@ export class Bits {
     const bit = this.get(bitId)
     this.setPhase(bitId, 'done')
     this.bus.emit('death', { line: bit?.outcome?.line || 'PHONE_CAUGHT', reason: 'chase' })
+  }
+
+  /** 进门 0.5s 演出结束、已经传送进房间：立刻结束追逐，星保留 */
+  finishEscape() {
+    if (this.getPhase('phone_walk') !== 'chase') return
+    this.chaser.abandon()
+    this.fleeTimer = 0
+    this.timers.set('phone_walk', 0)
+    this.setPhase('phone_walk', 'idle')
   }
 
   /* ---------------- 复位 / 演示直跳 ---------------- */
