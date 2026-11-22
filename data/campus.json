@@ -1,0 +1,1145 @@
+{
+  "meta": {
+    "version": 1,
+    "unit": "meter",
+    "up": "Y",
+    "source": "manual-layout",
+    "sourceNote": "建筑名与分区取自港中深官网 / 招生网 / 维基（2026-11 检索）；坐标为人工示意排布，非测绘数据。",
+    "accuracy": {
+      "position": "±50m",
+      "footprint": "±30%",
+      "height": "按层数 × 3.9m 估算"
+    },
+    "origin": {
+      "lat": 22.6889,
+      "lon": 114.2093,
+      "note": "原点 = 下园学生活动中庭（下沉广场）中心，+X 向东，+Z 向南"
+    },
+    "extent": [
+      -600,
+      -600,
+      600,
+      600
+    ],
+    "updated": "2026-11-20"
+  },
+  "ground": {
+    "size": [
+      1320,
+      1320
+    ],
+    "lawn": [
+      1320,
+      1320
+    ]
+  },
+  "water": [
+    {
+      "id": "fairy_lake",
+      "name": "神仙湖",
+      "en": "Fairy Lake",
+      "pos": [
+        100,
+        0,
+        0
+      ],
+      "size": [
+        240,
+        0,
+        150
+      ]
+    }
+  ],
+  "roads": [
+    {
+      "id": "spine",
+      "name": "主轴",
+      "pos": [
+        0,
+        0,
+        20
+      ],
+      "size": [
+        24,
+        0,
+        1040
+      ]
+    },
+    {
+      "id": "longxiang",
+      "name": "龙翔大道",
+      "pos": [
+        0,
+        0,
+        565
+      ],
+      "size": [
+        1200,
+        0,
+        30
+      ]
+    },
+    {
+      "id": "cross_lower",
+      "name": "下园横路",
+      "pos": [
+        0,
+        0,
+        285
+      ],
+      "size": [
+        900,
+        0,
+        16
+      ]
+    },
+    {
+      "id": "cross_upper",
+      "name": "上园横路",
+      "pos": [
+        -40,
+        0,
+        -330
+      ],
+      "size": [
+        800,
+        0,
+        14
+      ]
+    }
+  ],
+  "districts": [
+    {
+      "id": "lower",
+      "name": "下园",
+      "en": "Lower Campus",
+      "note": "行政 / 教学 / 科研 / 图书馆 / 逸夫书院"
+    },
+    {
+      "id": "middle",
+      "name": "中园",
+      "en": "Middle Campus",
+      "note": "神仙湖 / 音乐学院 / 医学院"
+    },
+    {
+      "id": "upper",
+      "name": "上园",
+      "en": "Upper Campus",
+      "note": "六所书院 / 教职员宿舍 / 服务中心"
+    }
+  ],
+  "landmarks": [
+    {
+      "id": "plaza",
+      "name": "学生活动中庭（下沉广场）",
+      "en": "Student Plaza",
+      "district": "lower",
+      "pos": [
+        -20,
+        0,
+        280
+      ],
+      "size": [
+        80,
+        0,
+        60
+      ],
+      "note": "教学楼 B、实验楼、学生中心、图书馆围合，下园中心枢纽"
+    },
+    {
+      "id": "track",
+      "name": "室外田径场",
+      "en": "Athletics Field",
+      "district": "lower",
+      "pos": [
+        220,
+        0,
+        500
+      ],
+      "size": [
+        130,
+        0,
+        80
+      ]
+    },
+    {
+      "id": "courts",
+      "name": "室外球场",
+      "en": "Outdoor Courts",
+      "district": "upper",
+      "pos": [
+        330,
+        0,
+        -250
+      ],
+      "size": [
+        80,
+        0,
+        60
+      ]
+    }
+  ],
+  "buildings": [
+    {
+      "id": "admin",
+      "name": "行政楼",
+      "en": "Administration Building",
+      "district": "lower",
+      "pos": [
+        -330,
+        0,
+        200
+      ],
+      "size": [
+        70,
+        32,
+        50
+      ],
+      "floors": 8,
+      "style": "admin"
+    },
+    {
+      "id": "conf_intl",
+      "name": "逸夫国际会议中心",
+      "en": "Run Run Shaw International Conference Centre",
+      "district": "lower",
+      "pos": [
+        -330,
+        0,
+        300
+      ],
+      "size": [
+        60,
+        20,
+        50
+      ],
+      "floors": 3,
+      "style": "conf"
+    },
+    {
+      "id": "research_complex",
+      "name": "科研楼",
+      "en": "Research Complex",
+      "district": "lower",
+      "pos": [
+        -250,
+        0,
+        110
+      ],
+      "size": [
+        70,
+        30,
+        50
+      ],
+      "floors": 7,
+      "style": "research"
+    },
+    {
+      "id": "conf_complex",
+      "name": "会议楼",
+      "en": "Conference Complex",
+      "district": "lower",
+      "pos": [
+        -170,
+        0,
+        110
+      ],
+      "size": [
+        50,
+        22,
+        40
+      ],
+      "floors": 4,
+      "style": "conf"
+    },
+    {
+      "id": "teach_a",
+      "name": "教学楼 A（张灵斌楼）",
+      "en": "Teaching Building A",
+      "district": "lower",
+      "pos": [
+        -340,
+        0,
+        400
+      ],
+      "size": [
+        80,
+        24,
+        30
+      ],
+      "floors": 5,
+      "style": "teach"
+    },
+    {
+      "id": "teach_b",
+      "name": "教学楼 B",
+      "en": "Teaching Building B",
+      "district": "lower",
+      "pos": [
+        -240,
+        0,
+        400
+      ],
+      "size": [
+        70,
+        24,
+        30
+      ],
+      "floors": 5,
+      "style": "teach"
+    },
+    {
+      "id": "teach_c",
+      "name": "教学楼 C",
+      "en": "Teaching Building C",
+      "district": "lower",
+      "pos": [
+        -150,
+        0,
+        400
+      ],
+      "size": [
+        70,
+        20,
+        28
+      ],
+      "floors": 4,
+      "style": "teach"
+    },
+    {
+      "id": "teach_d",
+      "name": "教学楼 D",
+      "en": "Teaching Building D",
+      "district": "lower",
+      "pos": [
+        -70,
+        0,
+        400
+      ],
+      "size": [
+        70,
+        20,
+        28
+      ],
+      "floors": 4,
+      "style": "teach"
+    },
+    {
+      "id": "teach_complex",
+      "name": "教学楼",
+      "en": "Teaching Complex",
+      "district": "lower",
+      "pos": [
+        60,
+        0,
+        460
+      ],
+      "size": [
+        70,
+        20,
+        30
+      ],
+      "floors": 4,
+      "style": "teach"
+    },
+    {
+      "id": "lab_a",
+      "name": "科研实验楼 A（李贤义楼）",
+      "en": "Research Building A",
+      "district": "lower",
+      "pos": [
+        160,
+        0,
+        380
+      ],
+      "size": [
+        70,
+        26,
+        40
+      ],
+      "floors": 6,
+      "style": "research"
+    },
+    {
+      "id": "lab_b",
+      "name": "科研实验楼 B（涂辉龙楼）",
+      "en": "Research Building B",
+      "district": "lower",
+      "pos": [
+        160,
+        0,
+        300
+      ],
+      "size": [
+        60,
+        26,
+        40
+      ],
+      "floors": 6,
+      "style": "research"
+    },
+    {
+      "id": "library",
+      "name": "大学图书馆",
+      "en": "University Library",
+      "district": "lower",
+      "pos": [
+        30,
+        0,
+        210
+      ],
+      "size": [
+        80,
+        22,
+        60
+      ],
+      "floors": 5,
+      "style": "lib"
+    },
+    {
+      "id": "library_2",
+      "name": "黄宜弘梁凤仪伉俪图书馆",
+      "en": "Wong Yi Hung & Leung Fung Yee Library",
+      "district": "lower",
+      "pos": [
+        95,
+        0,
+        175
+      ],
+      "size": [
+        45,
+        18,
+        35
+      ],
+      "floors": 4,
+      "style": "lib"
+    },
+    {
+      "id": "student_centre",
+      "name": "学生中心",
+      "en": "Student Centre",
+      "district": "lower",
+      "pos": [
+        -110,
+        0,
+        250
+      ],
+      "size": [
+        70,
+        18,
+        50
+      ],
+      "floors": 4,
+      "style": "service"
+    },
+    {
+      "id": "shaw_w",
+      "name": "逸夫书院西座",
+      "en": "Shaw College West",
+      "district": "lower",
+      "pos": [
+        250,
+        0,
+        190
+      ],
+      "size": [
+        50,
+        26,
+        40
+      ],
+      "floors": 6,
+      "style": "college"
+    },
+    {
+      "id": "shaw_e",
+      "name": "逸夫书院东座",
+      "en": "Shaw College East",
+      "district": "lower",
+      "pos": [
+        250,
+        0,
+        130
+      ],
+      "size": [
+        50,
+        26,
+        40
+      ],
+      "floors": 6,
+      "style": "college"
+    },
+    {
+      "id": "sports_hall",
+      "name": "大学体育馆",
+      "en": "University Sports Hall",
+      "district": "lower",
+      "pos": [
+        330,
+        0,
+        380
+      ],
+      "size": [
+        60,
+        22,
+        60
+      ],
+      "floors": 3,
+      "style": "sport"
+    },
+    {
+      "id": "sports_complex",
+      "name": "综合运动馆",
+      "en": "Sports Complex",
+      "district": "lower",
+      "pos": [
+        330,
+        0,
+        290
+      ],
+      "size": [
+        60,
+        20,
+        50
+      ],
+      "floors": 3,
+      "style": "sport"
+    },
+    {
+      "id": "dao_yuan",
+      "name": "道远楼",
+      "en": "Dao Yuan Building",
+      "district": "lower",
+      "pos": [
+        -200,
+        0,
+        480
+      ],
+      "size": [
+        40,
+        24,
+        30
+      ],
+      "floors": 5,
+      "style": "teach"
+    },
+    {
+      "id": "zhi_xin",
+      "name": "知新楼",
+      "en": "Zhi Xin Building",
+      "district": "lower",
+      "pos": [
+        -150,
+        0,
+        480
+      ],
+      "size": [
+        35,
+        24,
+        30
+      ],
+      "floors": 5,
+      "style": "teach"
+    },
+    {
+      "id": "zhi_ren",
+      "name": "志仁楼",
+      "en": "Zhi Ren Building",
+      "district": "lower",
+      "pos": [
+        -100,
+        0,
+        480
+      ],
+      "size": [
+        35,
+        24,
+        30
+      ],
+      "floors": 5,
+      "style": "teach"
+    },
+    {
+      "id": "cheng_dao",
+      "name": "诚道楼",
+      "en": "Cheng Dao Building",
+      "district": "lower",
+      "pos": [
+        -50,
+        0,
+        480
+      ],
+      "size": [
+        35,
+        24,
+        30
+      ],
+      "floors": 5,
+      "style": "teach"
+    },
+    {
+      "id": "le_tian",
+      "name": "乐天楼",
+      "en": "Le Tian Building",
+      "district": "lower",
+      "pos": [
+        0,
+        0,
+        480
+      ],
+      "size": [
+        35,
+        24,
+        30
+      ],
+      "floors": 5,
+      "style": "teach"
+    },
+    {
+      "id": "music",
+      "name": "音乐学院",
+      "en": "School of Music",
+      "district": "middle",
+      "pos": [
+        320,
+        0,
+        40
+      ],
+      "size": [
+        90,
+        26,
+        70
+      ],
+      "floors": 6,
+      "style": "conf"
+    },
+    {
+      "id": "medicine",
+      "name": "医学院",
+      "en": "School of Medicine",
+      "district": "middle",
+      "pos": [
+        -300,
+        0,
+        -20
+      ],
+      "size": [
+        100,
+        28,
+        70
+      ],
+      "floors": 7,
+      "style": "research"
+    },
+    {
+      "id": "college_8",
+      "name": "第八书院",
+      "en": "Eighth College",
+      "district": "middle",
+      "pos": [
+        -120,
+        0,
+        40
+      ],
+      "size": [
+        60,
+        26,
+        50
+      ],
+      "floors": 6,
+      "style": "college"
+    },
+    {
+      "id": "college_l_main",
+      "name": "学勤书院",
+      "en": "Diligentia College",
+      "district": "upper",
+      "pos": [
+        -250,
+        0,
+        -274.0
+      ],
+      "size": [
+        90,
+        24,
+        22
+      ],
+      "floors": 6,
+      "style": "college"
+    },
+    {
+      "id": "college_l_w",
+      "name": "学勤书院 西翼",
+      "en": "Diligentia College West Wing",
+      "district": "upper",
+      "pos": [
+        -284.0,
+        0,
+        -244
+      ],
+      "size": [
+        22,
+        24,
+        42
+      ],
+      "floors": 6,
+      "style": "college"
+    },
+    {
+      "id": "college_l_e",
+      "name": "学勤书院 东翼",
+      "en": "Diligentia College East Wing",
+      "district": "upper",
+      "pos": [
+        -216.0,
+        0,
+        -244
+      ],
+      "size": [
+        22,
+        24,
+        42
+      ],
+      "floors": 6,
+      "style": "college"
+    },
+    {
+      "id": "college_m_main",
+      "name": "思廷书院",
+      "en": "Muse College",
+      "district": "upper",
+      "pos": [
+        -60,
+        0,
+        -274.0
+      ],
+      "size": [
+        90,
+        24,
+        22
+      ],
+      "floors": 6,
+      "style": "college"
+    },
+    {
+      "id": "college_m_w",
+      "name": "思廷书院 西翼",
+      "en": "Muse College West Wing",
+      "district": "upper",
+      "pos": [
+        -94.0,
+        0,
+        -244
+      ],
+      "size": [
+        22,
+        24,
+        42
+      ],
+      "floors": 6,
+      "style": "college"
+    },
+    {
+      "id": "college_m_e",
+      "name": "思廷书院 东翼",
+      "en": "Muse College East Wing",
+      "district": "upper",
+      "pos": [
+        -26.0,
+        0,
+        -244
+      ],
+      "size": [
+        22,
+        24,
+        42
+      ],
+      "floors": 6,
+      "style": "college"
+    },
+    {
+      "id": "college_n_main",
+      "name": "祥波书院",
+      "en": "Harmonia College",
+      "district": "upper",
+      "pos": [
+        150,
+        0,
+        -274.0
+      ],
+      "size": [
+        90,
+        24,
+        22
+      ],
+      "floors": 6,
+      "style": "college"
+    },
+    {
+      "id": "college_n_w",
+      "name": "祥波书院 西翼",
+      "en": "Harmonia College West Wing",
+      "district": "upper",
+      "pos": [
+        116.0,
+        0,
+        -244
+      ],
+      "size": [
+        22,
+        24,
+        42
+      ],
+      "floors": 6,
+      "style": "college"
+    },
+    {
+      "id": "college_n_e",
+      "name": "祥波书院 东翼",
+      "en": "Harmonia College East Wing",
+      "district": "upper",
+      "pos": [
+        184.0,
+        0,
+        -244
+      ],
+      "size": [
+        22,
+        24,
+        42
+      ],
+      "floors": 6,
+      "style": "college"
+    },
+    {
+      "id": "college_ling_main",
+      "name": "道扬书院",
+      "en": "Ling College",
+      "district": "upper",
+      "pos": [
+        -250,
+        0,
+        -439.0
+      ],
+      "size": [
+        80,
+        22,
+        22
+      ],
+      "floors": 6,
+      "style": "college"
+    },
+    {
+      "id": "college_ling_w",
+      "name": "道扬书院 西翼",
+      "en": "Ling College West Wing",
+      "district": "upper",
+      "pos": [
+        -279.0,
+        0,
+        -414
+      ],
+      "size": [
+        22,
+        22,
+        32
+      ],
+      "floors": 6,
+      "style": "college"
+    },
+    {
+      "id": "college_ling_e",
+      "name": "道扬书院 东翼",
+      "en": "Ling College East Wing",
+      "district": "upper",
+      "pos": [
+        -221.0,
+        0,
+        -414
+      ],
+      "size": [
+        22,
+        22,
+        32
+      ],
+      "floors": 6,
+      "style": "college"
+    },
+    {
+      "id": "college_minerva_main",
+      "name": "厚含书院",
+      "en": "Minerva College",
+      "district": "upper",
+      "pos": [
+        -60,
+        0,
+        -439.0
+      ],
+      "size": [
+        80,
+        22,
+        22
+      ],
+      "floors": 6,
+      "style": "college"
+    },
+    {
+      "id": "college_minerva_w",
+      "name": "厚含书院 西翼",
+      "en": "Minerva College West Wing",
+      "district": "upper",
+      "pos": [
+        -89.0,
+        0,
+        -414
+      ],
+      "size": [
+        22,
+        22,
+        32
+      ],
+      "floors": 6,
+      "style": "college"
+    },
+    {
+      "id": "college_minerva_e",
+      "name": "厚含书院 东翼",
+      "en": "Minerva College East Wing",
+      "district": "upper",
+      "pos": [
+        -31.0,
+        0,
+        -414
+      ],
+      "size": [
+        22,
+        22,
+        32
+      ],
+      "floors": 6,
+      "style": "college"
+    },
+    {
+      "id": "college_7_main",
+      "name": "第七书院",
+      "en": "Seventh College",
+      "district": "upper",
+      "pos": [
+        150,
+        0,
+        -439.0
+      ],
+      "size": [
+        80,
+        22,
+        22
+      ],
+      "floors": 6,
+      "style": "college"
+    },
+    {
+      "id": "college_7_w",
+      "name": "第七书院 西翼",
+      "en": "Seventh College West Wing",
+      "district": "upper",
+      "pos": [
+        121.0,
+        0,
+        -414
+      ],
+      "size": [
+        22,
+        22,
+        32
+      ],
+      "floors": 6,
+      "style": "college"
+    },
+    {
+      "id": "college_7_e",
+      "name": "第七书院 东翼",
+      "en": "Seventh College East Wing",
+      "district": "upper",
+      "pos": [
+        179.0,
+        0,
+        -414
+      ],
+      "size": [
+        22,
+        22,
+        32
+      ],
+      "floors": 6,
+      "style": "college"
+    },
+    {
+      "id": "staff_1",
+      "name": "教职员宿舍 1 栋",
+      "en": "Staff Residence 1",
+      "district": "upper",
+      "pos": [
+        -360,
+        0,
+        -320
+      ],
+      "size": [
+        30,
+        26,
+        25
+      ],
+      "floors": 7,
+      "style": "dorm"
+    },
+    {
+      "id": "staff_2",
+      "name": "教职员宿舍 2 栋",
+      "en": "Staff Residence 2",
+      "district": "upper",
+      "pos": [
+        -360,
+        0,
+        -370
+      ],
+      "size": [
+        30,
+        26,
+        25
+      ],
+      "floors": 7,
+      "style": "dorm"
+    },
+    {
+      "id": "staff_3",
+      "name": "教职员宿舍 3 栋",
+      "en": "Staff Residence 3",
+      "district": "upper",
+      "pos": [
+        -360,
+        0,
+        -420
+      ],
+      "size": [
+        30,
+        26,
+        25
+      ],
+      "floors": 7,
+      "style": "dorm"
+    },
+    {
+      "id": "staff_4",
+      "name": "教职员宿舍 4 栋",
+      "en": "Staff Residence 4",
+      "district": "upper",
+      "pos": [
+        -360,
+        0,
+        -470
+      ],
+      "size": [
+        30,
+        26,
+        25
+      ],
+      "floors": 7,
+      "style": "dorm"
+    },
+    {
+      "id": "amenity",
+      "name": "服务中心",
+      "en": "Amenity Centre",
+      "district": "upper",
+      "pos": [
+        330,
+        0,
+        -350
+      ],
+      "size": [
+        60,
+        14,
+        50
+      ],
+      "floors": 3,
+      "style": "service"
+    }
+  ],
+  "anchors": [
+    {
+      "id": "a_plaza",
+      "name": "下沉广场",
+      "en": "Student Plaza",
+      "pos": [
+        -20,
+        0,
+        280
+      ],
+      "yaw": 0
+    },
+    {
+      "id": "a_library",
+      "name": "图书馆",
+      "en": "Library",
+      "pos": [
+        30,
+        0,
+        258
+      ],
+      "yaw": 180
+    },
+    {
+      "id": "a_teach",
+      "name": "教学楼",
+      "en": "Teaching Buildings",
+      "pos": [
+        -150,
+        0,
+        440
+      ],
+      "yaw": 180
+    },
+    {
+      "id": "a_shaw",
+      "name": "逸夫书院",
+      "en": "Shaw College",
+      "pos": [
+        250,
+        0,
+        248
+      ],
+      "yaw": 180
+    },
+    {
+      "id": "a_lake",
+      "name": "神仙湖",
+      "en": "Fairy Lake",
+      "pos": [
+        100,
+        0,
+        92
+      ],
+      "yaw": 180
+    },
+    {
+      "id": "a_upper",
+      "name": "上园",
+      "en": "Upper Campus",
+      "pos": [
+        -60,
+        0,
+        -248
+      ],
+      "yaw": 180
+    },
+    {
+      "id": "a_admin",
+      "name": "行政楼",
+      "en": "Administration",
+      "pos": [
+        -330,
+        0,
+        258
+      ],
+      "yaw": 180
+    }
+  ]
+}

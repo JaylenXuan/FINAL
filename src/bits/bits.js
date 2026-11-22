@@ -7,7 +7,7 @@ const ESCAPE_AFTER = 2 // 进房间后校长放弃的秒数（规格 §9）
  * 数据来自 bits.json，行为写在下面的 runner 里（sequence 的动词表由数据约束）
  */
 export class Bits {
-  constructor({ data, world, player, chaser, ui, audio, lines, state, bus, input }) {
+  constructor({ data, world, player, chaser, ui, audio, lines, state, bus, input, classroomZone = 'classroom' }) {
     this.data = data
     this.world = world
     this.player = player
@@ -18,6 +18,7 @@ export class Bits {
     this.state = state
     this.bus = bus
     this.input = input
+    this.classroomZone = classroomZone
 
     this.stars = 0
     this.enabled = data.filter((b) => b.enabled !== false)
@@ -147,7 +148,7 @@ export class Bits {
       return
     }
 
-    if (!(this.player.zone === 'classroom' && this.state.is(S.PLAY, S.WAKEUP))) {
+    if (!(this.player.zone === this.classroomZone && this.state.is(S.PLAY, S.WAKEUP))) {
       this.timers.set(bit.id, 0)
       return
     }
@@ -235,7 +236,7 @@ export class Bits {
       this.firePhoneWalk(bit)
     }
     if (bit.id === 'class_sleep') {
-      if (this.player.zone !== 'classroom') return this.ui.subtitle({ en: 'Force: go to the classroom first.', zh: '先到教室再按 F。' }, 1.4)
+      if (this.player.zone !== this.classroomZone) return this.ui.subtitle({ en: 'Force: go to the classroom first.', zh: '先到教室再按 F。' }, 1.4)
       this.setPhase(bit.id, 'idle')
       this.askQuestion(bit)
     }

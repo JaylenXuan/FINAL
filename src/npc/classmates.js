@@ -37,9 +37,9 @@ export class Classmates {
   _build() {
     const [ox, oy, oz] = this.origin
     const defs = [
-      { id: 'cm_whale', name: '鲸鱼娘', line: 'CM_1', kind: 'vrm', pos: [-2.4, 0, 0.35] },
-      { id: 'cm_nailong', name: '奶龙', line: 'CM_2', kind: 'billboard', img: '/models/billboards/nailong.png', pos: [2.4, 0, 0.35] },
-      { id: 'cm_naiwa', name: '奶蛙', line: 'CM_3', kind: 'billboard', img: '/models/billboards/naiwa.png', pos: [0.2, 0, 0.35] }
+      { id: 'cm_whale', name: '鲸鱼娘', line: 'CM_1', kind: 'vrm', pos: [-3.4, 0, -0.6] },
+      { id: 'cm_nailong', name: '奶龙', line: 'CM_2', kind: 'billboard', img: '/models/billboards/nailong.png', pos: [3.4, 0, -0.6] },
+      { id: 'cm_naiwa', name: '奶蛙', line: 'CM_3', kind: 'billboard', img: '/models/billboards/naiwa.png', pos: [1.9, 0, -1.5] }
     ]
     for (const d of defs) {
       const g = new THREE.Group()

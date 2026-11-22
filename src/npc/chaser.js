@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { heightAt, terrainActive } from '../campus/world/terrain.js'
 
 // 校长 / 保安共用同一套：只有外观不同
 // 速度定值 3.6（= 玩家走路 3.2 的 1.125 倍；玩家跑 6.0 一定拉得开，靠"进门"结束追逐）
@@ -200,10 +201,14 @@ export class Chaser {
   }
 
   sync() {
+    // 校园地形有高差：校长也要踩在地上，不然会半截陷进山坡或浮着追人
+    const gy = heightAt(this.pos.x, this.pos.z) + (terrainActive() ? 0.02 : 0)
     this.body.position.x = this.pos.x
     this.body.position.z = this.pos.z
+    this.body.position.y = gy + 0.89
     this.head.position.x = this.pos.x
     this.head.position.z = this.pos.z
+    this.head.position.y = gy + 1.63
   }
 
   despawn() {

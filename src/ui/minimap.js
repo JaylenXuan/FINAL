@@ -25,7 +25,7 @@ function roundedPath(x, y, w, h, r) {
   return `M${x + rr},${y} H${x + w - rr} Q${x + w},${y} ${x + w},${y + rr} V${y + h - rr} Q${x + w},${y + h} ${x + w - rr},${y + h} H${x + rr} Q${x},${y + h} ${x},${y + h - rr} V${y + rr} Q${x},${y} ${x + rr},${y} Z`
 }
 
-export function createMinimap({ data, world }) {
+export function createMinimap({ data, world, display = null }) {
   const host = document.createElement('div')
   host.id = 'minimap'
   Object.assign(host.style, {
@@ -73,6 +73,7 @@ export function createMinimap({ data, world }) {
   let select = null
   let playerRef = null
   let builtZone = null
+  let builtCenter = null
   let arrow = null
   let markers = []
   let pulseT = 0
@@ -101,6 +102,13 @@ export function createMinimap({ data, world }) {
     return { minX: x0 - m, maxX: x1 + m, minZ: z0 - m, maxZ: z1 + m }
   }
 
+  // 常驻时是 GTA 式局部雷达：以玩家为中心 260m，建筑看得清；
+  // 死亡选点时再缩到全校区，让四个锚点都进画面。
+  function localView(center, span = 260) {
+    const h = span / 2
+    return { minX: center.x - h, maxX: center.x + h, minZ: center.z - h, maxZ: center.z + h }
+  }
+
   function roomView(room) {
     const m = /^room_([\d.]+)x([\d.]+)x/.exec(room.shell)
     const w = m ? +m[1] : 10
@@ -116,6 +124,8 @@ export function createMinimap({ data, world }) {
   }
 
   function anchorMapPoint(a) {
+    const custom = display?.get(a.id)
+    if (custom) return { x: custom.x, z: custom.z }
     if (a.id === 'a_plaza') return { x: a.pos.x, z: a.pos.z }
     const door = doorForAnchor(a.id)
     if (door) return { x: door.pos[0], z: door.pos[2] }
@@ -139,6 +149,20 @@ export function createMinimap({ data, world }) {
     const [[x0, z0], [x1, z1]] = data.outdoor.bounds
     // 底色 / 广场铺装
     rect(baseG, map.tx(x0), map.tz(z0), (x1 - x0) * map.s, (z1 - z0) * map.s, 5, '#1c2734', 'rgba(120,142,166,.35)', 1)
+
+    // 道路：由 campus-osm.json 的 path 直接画，局部雷达里是最清楚的方向参照
+    for (const path of data.outdoor.roads || []) {
+      if (!path || path.length < 2) continue
+      const d = path.map(([x, z], i) => `${i ? 'L' : 'M'}${map.tx(x)},${map.tz(z)}`).join(' ')
+      svgEl('path', {
+        d,
+        fill: 'none',
+        stroke: 'rgba(96,142,174,.85)',
+        'stroke-width': path.length > 20 ? 1.2 : 1.8,
+        'stroke-linecap': 'round',
+        'stroke-linejoin': 'round'
+      }, baseG)
+    }
 
     // 道路 / 广场连线：由数据里的锚点和门生成，不手画
     const plaza = (data.outdoor.anchors || []).find((a) => a.id === 'a_plaza') || { pos: [0, 0, 6] }
@@ -306,7 +330,9 @@ export function createMinimap({ data, world }) {
     const zone = playerRef?.zone || 'outdoor'
     builtZone = zone
     if (zone === 'outdoor') {
-      const map = makeMap(outdoorView())
+      const center = { x: playerRef?.pos?.x || 0, z: playerRef?.pos?.z || 0 }
+      const map = makeMap(localView(center))
+      builtCenter = center
       drawOutdoorBase(map)
       const points = (world.anchorList || []).map((a) => {
         const pt = anchorMapPoint(a)
@@ -314,10 +340,11 @@ export function createMinimap({ data, world }) {
       })
       drawAnchorIcons(points, false)
       drawPlayerArrow()
-      tag.textContent = 'Plaza'
+      tag.textContent = 'CAMPUS'
       tag.style.display = 'block'
       dynG._map = map
     } else {
+      builtCenter = null
       const room = (data.rooms || []).find((r) => r.id === zone)
       if (room) {
         const map = makeMap(roomView(room))
@@ -498,6 +525,13 @@ export function createMinimap({ data, world }) {
       return
     }
     if (!builtZone || builtZone !== player.zone) buildNormal()
+    else if (
+      player.zone === 'outdoor' &&
+      builtCenter &&
+      Math.hypot(player.pos.x - builtCenter.x, player.pos.z - builtCenter.z) > 18
+    ) {
+      buildNormal()
+    }
     if (!arrow) return
 
     let x

@@ -56,6 +56,28 @@ export class Audio {
     this.tone(140, 0.28, 'sine', 0.5, 60)
   }
 
+  // 起跳：短促上滑，像脚下一蹬
+  jump() {
+    this.tone(280, 0.16, 'sine', 0.16, 620)
+    this.tone(900, 0.08, 'triangle', 0.05, 1200)
+  }
+
+  // 落地：低音 thump，冲击越大越闷
+  land(impact = 1) {
+    this.tone(110 + 30 * (1 - impact), 0.2, 'sine', 0.32 + impact * 0.22, 52)
+    this.tone(240, 0.07, 'triangle', 0.08, 120)
+  }
+
+  // 冲刺起步：一声短 whoosh
+  sprint() {
+    this.tone(160, 0.28, 'sawtooth', 0.07, 520)
+  }
+
+  // 冲刺过热：能量耗尽的泄气声
+  overheat() {
+    this.tone(420, 0.34, 'triangle', 0.12, 120)
+  }
+
   // 耳鸣：高频细音 + 缓慢衰减，醒来演出专用
   tinnitus(dur = 1.4) {
     const ctx = this.ensure()

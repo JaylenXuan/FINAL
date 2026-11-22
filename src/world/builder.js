@@ -48,7 +48,7 @@ export function anchorLabel(id) {
  * 读 world.json → 场景 + 碰撞盒 + 锚点 + 机位
  * 返回结构供 player / camera / bits 查询，不反向依赖它们
  */
-export function buildWorld(data, scene) {
+export function buildWorld(data, scene, options = {}) {
   const zones = {}
   const anchors = new Map()
   const interactables = []
@@ -56,10 +56,12 @@ export function buildWorld(data, scene) {
   const buildings = []
   const root = new THREE.Group()
   scene.add(root)
+  const buildOutdoor = options.outdoor !== false
 
   const texLoader = new THREE.TextureLoader()
 
-  /* ---------- 室外 ---------- */
+  if (buildOutdoor) {
+    /* ---------- 室外 ---------- */
   const out = data.outdoor
   const [gw, gd] = out.ground.size
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(gw, gd), M.paving)
@@ -133,6 +135,7 @@ export function buildWorld(data, scene) {
   }
 
   for (const a of out.anchors) addAnchor(a, 'outdoor')
+  } // end buildOutdoor
 
   /* ---------- 室内 ---------- */
   for (const room of data.rooms) {
