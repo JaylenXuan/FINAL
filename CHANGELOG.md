@@ -14,8 +14,10 @@
 - `scripts/test-bits.mjs`：断言改成「答错一次直接死」「答对按 3」
 
 **新增**
-- `src/ui/minimap.js`：常驻左上小地图，按 `world.json` 的 bounds / buildings / props / 门 / 锚点实时绘制；死亡时放大到 320，醒来缩回 220。
-- `main.js`：创建 minimap，每帧 `update(player)`，死亡 `setMode('select')`，醒来 `setMode('normal')`。
+- `src/ui/minimap.js`：常驻左上小地图，按 `world.json` 的 bounds / buildings / props / 门 / 锚点实时绘制；死亡时放大到 520 进入点选模式（点一下选中，再点一下确认）。
+- `main.js`：创建 minimap，每帧 `update(player)`；死亡 `setSelectMode(anchors, cb)`，醒来 `setMode('normal')`。
+- `src/ui/blackout.js`：`showPicker(..., { showList: false })`，选点列表让位给地图。
+- `data/world.json`：补一扇连廊门（`-0.5, -6.2 → a_corridor`），连廊现在能从广场走进去。
 
 **验证**：9 组测试全过；`npm run build` 通过；dev server 200。
 

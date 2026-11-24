@@ -133,6 +133,13 @@ async function main() {
         ui.setZone(anchor.label)
         chaser.despawn()
         director.play('wake_up', { full: anchor.id === 'a_classroom' })
+      }, { showList: false })
+      minimap.setSelectMode(world.anchorList, (anchor) => {
+        const i = world.anchorList.findIndex((x) => x.id === anchor.id)
+        if (i >= 0) {
+          blackout.pick(i)
+          blackout.confirm()
+        }
       })
       return
     }
@@ -174,6 +181,9 @@ async function main() {
   // 布局预览 / 演示兜底：?screen=anchors 直接看选点界面，?spawn=1 在面前放一个校长
   if (params.get('screen') === 'anchors') {
     blackout.showPicker(world.anchorList, 'a_classroom', () => {})
+  }
+  if (params.get('screen') === 'mapselect') {
+    minimap.setSelectMode(world.anchorList, () => {})
   }
   if (params.get('screen') === 'question') {
     ui.showQuestion(true)

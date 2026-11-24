@@ -44,7 +44,7 @@ export class Blackout {
   }
 
   /* ---------- 选点 ---------- */
-  showPicker(anchors, defaultId, onConfirm) {
+  showPicker(anchors, defaultId, onConfirm, opts = {}) {
     this.anchors = anchors
     this.onConfirm = onConfirm
     this.confirmed = false
@@ -62,7 +62,7 @@ export class Blackout {
     this.subEl.textContent = ''
     this.el.classList.add('show')
     this.el.style.opacity = '1'
-    this.listEl.classList.add('show')
+    if (opts.showList !== false) this.listEl.classList.add('show')
     this.paint()
   }
 

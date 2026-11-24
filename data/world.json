@@ -12,7 +12,8 @@
       { "type": "bench", "pos": [3, 0, 2], "rotationY": 90 },
       { "type": "gate", "pos": [3.4, 0, 9.3], "rotationY": 0 },
       { "type": "door", "pos": [-3, 0, -6.2], "rotationY": 0, "to": "a_classroom" },
-      { "type": "door", "pos": [-6.5, 0, -6.2], "rotationY": 0, "to": "a_library" }
+      { "type": "door", "pos": [-6.5, 0, -6.2], "rotationY": 0, "to": "a_library" },
+      { "type": "door", "pos": [-0.5, 0, -6.2], "rotationY": 0, "to": "a_corridor" }
     ],
     "bounds": [[-10, -10], [10, 10]],
     "anchors": [
