@@ -77,20 +77,20 @@ export class CameraRig {
   /** 鼠标拖拽 / 指针锁定的视角增量 */
   addOrbit(dx, dy) {
     if (this.mode === 'firstPerson') {
-      this.camYaw -= dx * 0.0008
-      this.camPitch = Math.min(0.8, Math.max(-0.8, this.camPitch + dy * 0.0006))
+      this.camYaw -= dx * 0.0006
+      this.camPitch = Math.min(0.8, Math.max(-0.8, this.camPitch + dy * 0.00045))
       return
     }
     if (this.mode === 'indoor') {
       // 室内：位置不动，鼠标只旋转视线
-      this.indoorYaw -= dx * 0.0008
-      this.indoorPitch = Math.min(0.7, Math.max(-0.6, this.indoorPitch + dy * 0.0006))
+      this.indoorYaw -= dx * 0.0006
+      this.indoorPitch = Math.min(0.7, Math.max(-0.6, this.indoorPitch + dy * 0.00045))
       return
     }
     if (this.camYaw === null) this.camYaw = 0
     // 灵敏度：0.005 太飘了，一划就转半圈；这里降到 0.0022
-    this.camYaw -= dx * 0.0007
-    this.camPitch = Math.min(1.0, Math.max(-0.05, this.camPitch + dy * 0.0005))
+    this.camYaw -= dx * 0.0005
+    this.camPitch = Math.min(1.0, Math.max(-0.05, this.camPitch + dy * 0.00035))
     this.followDelay = 1.4 // 手动转视角后先别抢回来
   }
 
