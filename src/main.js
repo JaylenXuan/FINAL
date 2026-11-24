@@ -144,38 +144,208 @@ async function main() {
   }
   const siteY = terrainMax + 0.15
   const baseRoom = (worldData.rooms || []).find((r) => r.id === 'classroom')
+  const FARB = 5000
+  const roomThemeByZone = new Map()
+
+  const desk = (x, z) => ({ type: 'desk', pos: [x, 0, z] })
+  const roomThemes = [
+    {
+      id: 'classroom',
+      code: '01',
+      nameEn: 'Homeroom 01',
+      nameZh: '01 班教室',
+      accent: 0x3f6a52,
+      light: 0xffe7c8,
+      props: baseRoom?.props || [],
+      decor: 'homeroom'
+    },
+    {
+      id: 'classroom_2',
+      code: '02',
+      nameEn: 'Exam Hall',
+      nameZh: '02 考场',
+      accent: 0x58709e,
+      light: 0xdfeafc,
+      props: [
+        { type: 'podium', pos: [0, 0, -3] },
+        ...[-3.2, -1.1, 1.1, 3.2].flatMap((x) => [desk(x, -1.1), desk(x, 1.1), desk(x, 2.6)])
+      ],
+      decor: 'exam'
+    },
+    {
+      id: 'classroom_3',
+      code: '03',
+      nameEn: 'Student Club',
+      nameZh: '03 社团活动室',
+      accent: 0x9a6044,
+      light: 0xffd9ae,
+      props: [desk(-2.6, -1.2), desk(2.6, -1.2), desk(-2.6, 1.6), desk(2.6, 1.6), desk(0, 2.8)],
+      decor: 'club'
+    },
+    {
+      id: 'classroom_4',
+      code: '04',
+      nameEn: 'Science Lab',
+      nameZh: '04 实验室',
+      accent: 0x3f8494,
+      light: 0xc8f2ff,
+      props: [desk(-2.5, -1.2), desk(2.5, -1.2), desk(-2.5, 1.2), desk(2.5, 1.2)],
+      decor: 'lab'
+    },
+    {
+      id: 'classroom_5',
+      code: '05',
+      nameEn: 'Quiet Study',
+      nameZh: '05 自习室',
+      accent: 0x7a6a4c,
+      light: 0xfff0d2,
+      props: [desk(-3, -1), desk(-1, -1), desk(1, -1), desk(3, -1), desk(-3, 1), desk(-1, 1), desk(1, 1), desk(3, 1)],
+      decor: 'study'
+    },
+    {
+      id: 'classroom_6',
+      code: '06',
+      nameEn: 'Music Room',
+      nameZh: '06 音乐室',
+      accent: 0x8a4a86,
+      light: 0xffd2f2,
+      props: [desk(-3.2, 2.1), desk(3.2, 2.1)],
+      decor: 'music'
+    },
+    {
+      id: 'classroom_7',
+      code: '07',
+      nameEn: 'Art Studio',
+      nameZh: '07 美术室',
+      accent: 0xa07f45,
+      light: 0xfff2c8,
+      props: [desk(-3.2, -1.5), desk(0, -1.5), desk(3.2, -1.5)],
+      decor: 'art'
+    },
+    {
+      id: 'classroom_8',
+      code: '08',
+      nameEn: 'Meeting Room',
+      nameZh: '08 会议室',
+      accent: 0x4a6a8a,
+      light: 0xd5e6ff,
+      props: [desk(-3, -1.4), desk(0, -1.4), desk(3, -1.4), desk(-3, 1.4), desk(0, 1.4), desk(3, 1.4)],
+      decor: 'meeting'
+    }
+  ]
 
   if (baseRoom) {
-    const W = 12.4 // 外立面宽
-    const D = 10.4 // 外立面进深
-    classroomData = {
-      rooms: [
-        {
+    const roomDefs = roomThemes.map((theme, i) => {
+      const ox = FARB + i * 18
+      const oz = FARB
+      const anchorId = i === 0 ? 'a_classroom' : `a_classroom_${i + 1}`
+      roomThemeByZone.set(theme.id, theme)
+      return {
+        theme,
+        anchorId,
+        origin: [ox, 0, oz],
+        room: {
           ...baseRoom,
-          origin: [siteX, siteY, siteZ],
+          id: theme.id,
+          label: theme.nameEn,
+          origin: [ox, 0, oz],
           exit: 'a_out_classroom',
-          anchors: [{ id: 'a_classroom', pos: [siteX, siteY, siteZ + 2], yaw: 0 }]
+          props: theme.props,
+          anchors: [{ id: anchorId, pos: [ox, 0, oz + 2], yaw: 0 }]
         }
-      ]
-    }
+      }
+    })
+    classroomData = { rooms: roomDefs.map((r) => r.room) }
     const classWorld = buildWorld(classroomData, scene, { outdoor: false })
-    world.zones[classroomZone] = classWorld.zones.classroom
-    world.zones[classroomZone].floorY = siteY
-    world.roomCameras[classroomZone] = classWorld.roomCameras.classroom
-    for (const [id, a] of classWorld.anchors) world.anchors.set(id, a)
+    for (const def of roomDefs) {
+      const zone = classWorld.zones[def.theme.id]
+      if (!zone) continue
+      world.zones[def.theme.id] = zone
+      world.zones[def.theme.id].floorY = 0
+      world.roomCameras[def.theme.id] = classWorld.roomCameras[def.theme.id]
+      for (const [id, a] of classWorld.anchors) {
+        if (a.zone === def.theme.id) {
+          a.label = def.theme.nameEn
+          world.anchors.set(id, a)
+        }
+      }
+    }
+    // 每个房间的出口交互（统一回到门外）
     for (const it of classWorld.interactables) world.interactables.push(it)
 
-    // 教室里补暖光（楼顶挡住太阳）
-    for (const [lx, lz] of [
-      [siteX, siteZ],
-      [siteX + 2.8, siteZ - 2.2]
-    ]) {
-      const lamp = new THREE.PointLight(0xffe7c8, 26, 26, 2)
-      lamp.position.set(lx, siteY + 3.5, lz)
-      scene.add(lamp)
+    // 每个房间的光、墙面主题色和简单陈设
+    const addBox = (x, y, z, w, h, d, color) => {
+      const m = new THREE.Mesh(
+        new THREE.BoxGeometry(w, h, d),
+        new THREE.MeshStandardMaterial({ color, roughness: 0.85 })
+      )
+      m.position.set(x, y + h / 2, z)
+      m.castShadow = true
+      m.receiveShadow = true
+      scene.add(m)
+      return m
+    }
+    const addPanel = (x, y, z, w, h, color, ry = 0) => {
+      const m = new THREE.Mesh(
+        new THREE.PlaneGeometry(w, h),
+        new THREE.MeshStandardMaterial({ color, roughness: 0.8, side: THREE.DoubleSide })
+      )
+      m.position.set(x, y, z)
+      m.rotation.y = ry
+      scene.add(m)
     }
 
-    // 讲台旁老师剪影
+    for (const def of roomDefs) {
+      const [ox, oy, oz] = def.origin
+      const theme = def.theme
+      const lamp = new THREE.PointLight(theme.light, 24, 24, 2)
+      lamp.position.set(ox, oy + 3.5, oz)
+      scene.add(lamp)
+      // 后墙两侧的海报色块，避免整面墙变成黑板背景
+      for (const sx of [-1, 1]) {
+        addPanel(ox + sx * 3.5, oy + 2.1, oz - 3.93, 1.5, 1.05, theme.accent)
+      }
+      // 地面色块
+      const rug = new THREE.Mesh(
+        new THREE.PlaneGeometry(4.2, 3.0),
+        new THREE.MeshStandardMaterial({ color: theme.accent, roughness: 0.95, transparent: true, opacity: 0.28 })
+      )
+      rug.rotation.x = -Math.PI / 2
+      rug.position.set(ox + 1.4, oy + 0.012, oz + 1.2)
+      scene.add(rug)
+
+      if (theme.decor === 'lab') {
+        addBox(ox - 2.2, oy + 0.75, oz - 2.4, 1.2, 0.12, 3.2, 0x9fc4c8)
+        addBox(ox + 2.2, oy + 0.75, oz - 2.4, 1.2, 0.12, 3.2, 0x9fc4c8)
+        addBox(ox - 2.8, oy + 0.9, oz - 2.4, 0.35, 0.5, 0.35, 0x88aab0)
+        addBox(ox + 2.8, oy + 0.9, oz - 2.4, 0.35, 0.5, 0.35, 0x88aab0)
+      } else if (theme.decor === 'club') {
+        addBox(ox - 4.2, oy + 0.38, oz + 1.6, 0.7, 0.76, 2.6, 0x8a5a44)
+        addBox(ox + 4.2, oy + 0.38, oz + 1.6, 0.7, 0.76, 2.6, 0x8a5a44)
+      } else if (theme.decor === 'music') {
+        addBox(ox, oy + 0.7, oz - 2.9, 3.2, 1.4, 1.0, 0x1e1b20)
+        addBox(ox, oy + 0.62, oz - 1.9, 2.4, 0.12, 1.8, 0xf4f0e8)
+        addBox(ox + 2.9, oy + 0.35, oz + 0.6, 0.5, 0.7, 0.5, 0x5b3b2e)
+      } else if (theme.decor === 'art') {
+        for (let i = 0; i < 4; i++) {
+          const ex = ox - 3.2 + i * 2.1
+          const ez = oz + 0.7
+          addBox(ex, oy + 0.85, ez, 0.08, 1.7, 0.08, 0x8a6a44)
+          addBox(ex, oy + 1.45, ez, 1.1, 0.8, 0.06, 0xefe6d6)
+          addBox(ex, oy + 0.35, ez + 0.5, 0.6, 0.7, 0.6, 0x6b4b34)
+        }
+      } else if (theme.decor === 'meeting') {
+        addBox(ox, oy + 0.72, oz, 4.6, 0.14, 1.8, 0x8a6f50)
+        addBox(ox - 2.1, oy + 0.3, oz, 0.35, 0.6, 0.35, 0x3a3a3a)
+        addBox(ox + 2.1, oy + 0.3, oz, 0.35, 0.6, 0.35, 0x3a3a3a)
+      } else if (theme.decor === 'exam') {
+        addBox(ox, oy + 1.5, oz - 3.85, 5.5, 0.9, 0.06, 0x1d2a24)
+      }
+    }
+
+    // 主教室里有老师和三个同学；其他教室保持安静场景
+    const homeroom = roomDefs[0]
+    const [hx, hy, hz] = homeroom.origin
     const teacher = new THREE.Group()
     const teacherBody = new THREE.Mesh(
       new THREE.CapsuleGeometry(0.24, 0.92, 6, 10),
@@ -191,10 +361,19 @@ async function main() {
     teacherHead.position.y = 1.52
     teacherHead.castShadow = true
     teacher.add(teacherHead)
-    teacher.position.set(siteX, siteY, siteZ - 2.8)
+    teacher.position.set(hx, hy, hz - 2.8)
     scene.add(teacher)
+  }
 
-    /* ---------- 室外教学楼B外立面 ---------- */
+  /* ---------- 室外教学楼B：一排 8 间教室的门 ---------- */
+  if (baseRoom && roomThemes.length) {
+    const W = 40
+    const D = 10.4
+    const fh = 4.8
+    const doorCount = roomThemes.length
+    const usable = W - 6
+    const step = usable / doorCount
+    const doorX = (i) => -W / 2 + 3 + step * (i + 0.5)
     const stone = new THREE.MeshStandardMaterial({ color: 0xe7e1d4, roughness: 0.92 })
     const trim = new THREE.MeshStandardMaterial({ color: 0x3e4650, roughness: 0.65 })
     const glass = new THREE.MeshStandardMaterial({
@@ -206,108 +385,116 @@ async function main() {
     })
     const paving = new THREE.MeshStandardMaterial({ color: 0xb8b0a2, roughness: 0.96 })
 
-    // 屋顶 + 女儿墙
-    const roof = new THREE.Mesh(new THREE.BoxGeometry(W, 0.4, D), trim)
-    roof.position.set(siteX, siteY + 4.25, siteZ)
+    // 屋顶 / 女儿墙
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(W + 0.4, 0.4, D + 0.4), trim)
+    roof.position.set(siteX, siteY + 4.55, siteZ)
     roof.castShadow = true
     roof.receiveShadow = true
     scene.add(roof)
-    const parapet = new THREE.Mesh(new THREE.BoxGeometry(W, 0.5, 0.28), stone)
-    parapet.position.set(siteX, siteY + 4.7, siteZ + D / 2 - 0.14)
-    scene.add(parapet)
-
-    // 正面外墙：中间留 2.9m 门洞
-    const fh = 4.5
-    const opening = 2.9
-    const sideW = (W - opening) / 2
-    for (const sx of [-1, 1]) {
-      const side = new THREE.Mesh(new THREE.BoxGeometry(sideW, fh, 0.32), stone)
-      side.position.set(siteX + sx * (opening / 2 + sideW / 2), siteY + fh / 2, siteZ + D / 2 - 0.1)
-      side.castShadow = true
-      side.receiveShadow = true
-      scene.add(side)
-      // 外墙窗带
-      const win = new THREE.Mesh(new THREE.PlaneGeometry(sideW * 0.72, 1.55), glass)
-      win.position.set(siteX + sx * (opening / 2 + sideW / 2), siteY + 2.35, siteZ + D / 2 + 0.08)
-      scene.add(win)
+    for (const side of [-1, 1]) {
+      const parapet = new THREE.Mesh(new THREE.BoxGeometry(W + 0.4, 0.5, 0.26), stone)
+      parapet.position.set(siteX, siteY + 5.0, siteZ + side * (D / 2 + 0.2))
+      scene.add(parapet)
     }
-    const header = new THREE.Mesh(new THREE.BoxGeometry(W, fh - 2.95, 0.32), stone)
-    header.position.set(siteX, siteY + 2.95 + (fh - 2.95) / 2, siteZ + D / 2 - 0.1)
-    header.castShadow = true
-    scene.add(header)
 
-    // 玻璃门 + 门框
-    for (const sx of [-1, 1]) {
-      const post = new THREE.Mesh(new THREE.BoxGeometry(0.16, 2.85, 0.34), trim)
-      post.position.set(siteX + sx * 1.18, siteY + 1.425, siteZ + D / 2 + 0.12)
-      scene.add(post)
+    // 一整面白墙；8 个门作为深色玻璃门嵌在墙上
+    const frontWall = new THREE.Mesh(new THREE.BoxGeometry(W, fh, 0.32), stone)
+    frontWall.position.set(siteX, siteY + fh / 2, siteZ + D / 2 - 0.1)
+    frontWall.castShadow = true
+    frontWall.receiveShadow = true
+    scene.add(frontWall)
+
+    // 每个门：深色门套 + 玻璃 + 上方小门牌
+    const makeSignTexture = (text, sub) => {
+      const cv = document.createElement('canvas')
+      cv.width = 512
+      cv.height = 144
+      const ctx = cv.getContext('2d')
+      ctx.fillStyle = '#0e1319'
+      ctx.fillRect(0, 0, cv.width, cv.height)
+      ctx.strokeStyle = 'rgba(255,206,120,.7)'
+      ctx.lineWidth = 6
+      ctx.strokeRect(3, 3, cv.width - 6, cv.height - 6)
+      ctx.fillStyle = '#f4f1ea'
+      ctx.font = '700 58px "Microsoft YaHei", sans-serif'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText(text, cv.width / 2, 58)
+      ctx.font = '400 24px "Helvetica Neue", Arial, sans-serif'
+      ctx.fillStyle = 'rgba(255,206,120,.9)'
+      ctx.fillText(sub, cv.width / 2, 110)
+      const tex = new THREE.CanvasTexture(cv)
+      tex.colorSpace = THREE.SRGBColorSpace
+      return tex
     }
-    const lintel = new THREE.Mesh(new THREE.BoxGeometry(2.52, 0.2, 0.34), trim)
-    lintel.position.set(siteX, siteY + 2.96, siteZ + D / 2 + 0.12)
-    scene.add(lintel)
-    const leaf = new THREE.Mesh(new THREE.BoxGeometry(2.06, 2.56, 0.06), glass)
-    leaf.position.set(siteX, siteY + 1.32, siteZ + D / 2 + 0.16)
-    scene.add(leaf)
-    // 门把手
-    const knob = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.5, 0.06), trim)
-    knob.position.set(siteX + 0.78, siteY + 1.15, siteZ + D / 2 + 0.22)
-    scene.add(knob)
 
-    // 雨棚
-    const canopy = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.16, 1.8), trim)
-    canopy.position.set(siteX, siteY + 3.25, siteZ + D / 2 + 0.9)
+    for (let i = 0; i < doorCount; i++) {
+      const theme = roomThemes[i]
+      const dx = doorX(i)
+      const zFace = siteZ + D / 2 + 0.12
+      for (const sx of [-1, 1]) {
+        const post = new THREE.Mesh(new THREE.BoxGeometry(0.15, 2.85, 0.34), trim)
+        post.position.set(siteX + dx + sx * 1.08, siteY + 1.425, zFace)
+        scene.add(post)
+      }
+      const lintel = new THREE.Mesh(new THREE.BoxGeometry(2.32, 0.18, 0.34), trim)
+      lintel.position.set(siteX + dx, siteY + 2.86, zFace)
+      scene.add(lintel)
+      const leaf = new THREE.Mesh(new THREE.BoxGeometry(1.9, 2.56, 0.06), glass)
+      leaf.position.set(siteX + dx, siteY + 1.32, zFace + 0.04)
+      scene.add(leaf)
+      const sign = new THREE.Mesh(
+        new THREE.PlaneGeometry(1.5, 0.42),
+        new THREE.MeshBasicMaterial({
+          map: makeSignTexture(theme.code, theme.nameZh.replace(/^\d+\s*/, '')),
+          transparent: true
+        })
+      )
+      sign.position.set(siteX + dx, siteY + 3.25, zFace + 0.2)
+      scene.add(sign)
+      // 门牌下方的暖色引导条
+      const bar = new THREE.Mesh(
+        new THREE.BoxGeometry(1.5, 0.04, 0.04),
+        new THREE.MeshBasicMaterial({ color: 0xffc46b })
+      )
+      bar.position.set(siteX + dx, siteY + 3.0, zFace + 0.2)
+      scene.add(bar)
+
+      // 每扇门一个交互点
+      world.interactables.push({
+        zone: 'outdoor',
+        pos: new THREE.Vector3(siteX + dx, 0, siteZ + D / 2 + 1.2),
+        radius: 2.9,
+        anchorId: i === 0 ? 'a_classroom' : `a_classroom_${i + 1}`,
+        label: theme.nameZh
+      })
+    }
+
+    // 雨棚正面大字招牌（从门口看得到，不用抬头）
+    const bigSign = new THREE.Mesh(
+      new THREE.PlaneGeometry(5.2, 0.78),
+      new THREE.MeshBasicMaterial({ map: makeSignTexture('教学楼 B', 'TEACHING B · 8 CLASSROOMS'), transparent: true })
+    )
+    bigSign.position.set(siteX, siteY + 3.46, siteZ + D / 2 + 1.86)
+    scene.add(bigSign)
+
+    // 门前铺装 + 雨棚
+    const path = new THREE.Mesh(new THREE.PlaneGeometry(W - 2, 6.5), paving)
+    path.rotation.x = -Math.PI / 2
+    path.position.set(siteX, siteY + 0.015, siteZ + D / 2 + 3.25)
+    path.receiveShadow = true
+    scene.add(path)
+    const canopy = new THREE.Mesh(new THREE.BoxGeometry(W + 1.2, 0.16, 1.7), trim)
+    canopy.position.set(siteX, siteY + 3.45, siteZ + D / 2 + 1.0)
     canopy.castShadow = true
     scene.add(canopy)
 
-    // 门牌
-    const cv = document.createElement('canvas')
-    cv.width = 640
-    cv.height = 160
-    const ctx = cv.getContext('2d')
-    ctx.fillStyle = '#0e1319'
-    ctx.fillRect(0, 0, cv.width, cv.height)
-    ctx.strokeStyle = 'rgba(255,206,120,.75)'
-    ctx.lineWidth = 8
-    ctx.strokeRect(4, 4, cv.width - 8, cv.height - 8)
-    ctx.fillStyle = '#f4f1ea'
-    ctx.font = '700 72px "Microsoft YaHei", sans-serif'
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillText('教学楼 B', cv.width / 2, 66)
-    ctx.font = '400 30px "Helvetica Neue", Arial, sans-serif'
-    ctx.fillStyle = 'rgba(255,206,120,.9)'
-    ctx.fillText('TEACHING B', cv.width / 2, 126)
-    const signTex = new THREE.CanvasTexture(cv)
-    signTex.colorSpace = THREE.SRGBColorSpace
-    const sign = new THREE.Mesh(
-      new THREE.PlaneGeometry(2.0, 0.5),
-      new THREE.MeshBasicMaterial({ map: signTex, transparent: true })
-    )
-    sign.position.set(siteX, siteY + 3.55, siteZ + D / 2 + 0.28)
-    scene.add(sign)
-
-    // 门前铺装
-    const path = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 6.4), paving)
-    path.rotation.x = -Math.PI / 2
-    path.position.set(siteX, siteY + 0.015, siteZ + D / 2 + 3.8)
-    path.receiveShadow = true
-    scene.add(path)
-
-    // 门口交互点
-    world.interactables.push({
-      zone: 'outdoor',
-      pos: new THREE.Vector3(siteX, 0, siteZ + D / 2 + 1.2),
-      radius: 4.5,
-      anchorId: 'a_classroom',
-      label: '进入教学楼B'
-    })
-
-    // 出生点在门前 6.5m
+    // 出生点正对 01 班教室门，其他 7 间教室往右一字排开
     classEntrance = {
       id: 'a_teach_entrance',
       label: '教学楼B 门口',
       zone: 'outdoor',
-      pos: new THREE.Vector3(siteX, 0, siteZ + D / 2 + 6.5),
+      pos: new THREE.Vector3(siteX + doorX(0), 0, siteZ + D / 2 + 6.5),
       yaw: 0
     }
     world.anchors.set(classEntrance.id, classEntrance)
@@ -317,6 +504,13 @@ async function main() {
       zone: 'outdoor',
       pos: classEntrance.pos.clone(),
       yaw: 0
+    })
+
+    // 整栋楼挡住人；8 个门用 E 交互
+    world.zones.outdoor.extraColliders = world.zones.outdoor.extraColliders || []
+    world.zones.outdoor.extraColliders.push({
+      min: new THREE.Vector3(siteX - W / 2, 0, siteZ - D / 2),
+      max: new THREE.Vector3(siteX + W / 2, fh, siteZ + D / 2)
     })
   }
 
@@ -337,6 +531,12 @@ async function main() {
       max: new THREE.Vector3(maxX, 0, maxZ)
     }
   })
+  if (classEntrance) {
+    world.buildings.push({
+      min: new THREE.Vector3(siteX - 20, 0, siteZ - 5.2),
+      max: new THREE.Vector3(siteX + 20, 0, siteZ + 5.2)
+    })
+  }
 
   // 死亡选点/调试传送的四个锚点；教室用定制教室，其余用校园里最好找的点
   const pick = (id) => world.anchors.get(id)
@@ -401,7 +601,7 @@ async function main() {
     }
   })
   if (classEntrance) {
-    mapBuildings.push({ pos: [siteX, 0, siteZ], size: [12.4, 2, 10.4] })
+    mapBuildings.push({ pos: [siteX, 0, siteZ], size: [40, 2, 10.4] })
   }
   const mapData = {
     outdoor: {
@@ -473,13 +673,18 @@ async function main() {
     rig.snapTo(player.pos, player.yaw)
     applyZoneFx(player.zone)
     ui.setZone(a.label)
-    // 进教室就把标题卡收掉，别挡上课
-    if (player.zone === classroomZone) ui.hideIntro()
-    // 第一次从校园走进教室：黑→睁一条缝→闭→更亮→完全睁开，再开始上课
+    // 进任何教室就把标题卡收掉，别挡上课/参观
+    if (roomThemeByZone.has(player.zone)) ui.hideIntro()
+    // 第一次从校园走进主教室：黑→睁一条缝→闭→更亮→完全睁开，再开始上课
     if (player.zone === classroomZone && state.is(S.PLAY)) {
       state.set(S.WAKEUP)
       director.play('wake_up', { full: true })
       return
+    }
+    // 其他 7 间教室：自由参观场景，进门前提示教室主题
+    const theme = roomThemeByZone.get(player.zone)
+    if (theme) {
+      ui.subtitle({ en: `${theme.nameEn} · look around`, zh: `${theme.nameZh} · 可以自由看看` }, 2.0)
     }
     if (withFade) director.play('respawn')
   }

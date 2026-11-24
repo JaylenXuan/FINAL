@@ -15,6 +15,10 @@ export class CameraRig {
     // 第三人称环绕镜头：相机围绕角色转，方位角 camYaw 会跟着角色朝向走
     this.camYaw = null
     this.camPitch = 0.28
+    // 室内自由视角：机位固定在教室里的 roomCamera.pos，鼠标只转朝向
+    this.indoorYaw = 0
+    this.indoorPitch = 0
+    this.indoorLookAt = new THREE.Vector3()
     this.dist = 6.2
     this.followDelay = 0
     this.lookH = LOOK_H
@@ -41,11 +45,35 @@ export class CameraRig {
 
   /** 鼠标拖拽 / 指针锁定的视角增量 */
   addOrbit(dx, dy) {
+    if (this.mode === 'indoor') {
+      // 室内：位置不动，鼠标只旋转视线
+      this.indoorYaw -= dx * 0.0018
+      this.indoorPitch = Math.min(0.7, Math.max(-0.6, this.indoorPitch + dy * 0.0014))
+      return
+    }
     if (this.camYaw === null) this.camYaw = 0
     // 灵敏度：0.005 太飘了，一划就转半圈；这里降到 0.0022
     this.camYaw -= dx * 0.0014
     this.camPitch = Math.min(1.0, Math.max(-0.05, this.camPitch + dy * 0.001))
     this.followDelay = 1.4 // 手动转视角后先别抢回来
+  }
+
+  _resetIndoorLook(room) {
+    const dx = room.lookAt.x - room.pos.x
+    const dy = room.lookAt.y - room.pos.y
+    const dz = room.lookAt.z - room.pos.z
+    this.indoorYaw = Math.atan2(dx, dz)
+    this.indoorPitch = Math.max(-0.6, Math.min(0.7, Math.atan2(dy, Math.hypot(dx, dz))))
+  }
+
+  _indoorLook(room) {
+    const cp = Math.cos(this.indoorPitch)
+    this.indoorLookAt.set(
+      room.pos.x + Math.sin(this.indoorYaw) * cp * 10,
+      room.pos.y + Math.sin(this.indoorPitch) * 10,
+      room.pos.z + Math.cos(this.indoorYaw) * cp * 10
+    )
+    return this.indoorLookAt
   }
 
   /** 把相机放到目标背后（1 秒内不自动跟随） */
@@ -66,7 +94,8 @@ export class CameraRig {
     const room = this.world.roomCameras[this.zone]
     if (room) {
       this.camera.position.copy(room.pos)
-      this.lookAt.copy(room.lookAt)
+      this._resetIndoorLook(room)
+      this.lookAt.copy(this._indoorLook(room))
       this.camera.lookAt(this.lookAt)
       return
     }
@@ -88,7 +117,8 @@ export class CameraRig {
     this.camera.updateProjectionMatrix()
     if (snap && room) {
       this.camera.position.copy(room.pos)
-      this.lookAt.copy(room.lookAt)
+      this._resetIndoorLook(room)
+      this.lookAt.copy(this._indoorLook(room))
       this.camera.lookAt(this.lookAt)
     }
   }
@@ -108,9 +138,10 @@ export class CameraRig {
     const room = this.world.roomCameras[this.zone]
 
     if (room) {
-      // 室内固定机位：位置不动，只做轻微推近避免完全静止
+      // 室内：机位固定在教室里，鼠标可以自由转视线
       this.camera.position.lerp(room.pos, 1 - Math.exp(-6 * dt))
-      this.lookAt.lerp(room.lookAt, 1 - Math.exp(-6 * dt))
+      const targetLook = this._indoorLook(room)
+      this.lookAt.lerp(targetLook, 1 - Math.exp(-14 * dt))
     } else {
       // 视角只由鼠标决定：键盘只负责移动，不许它偷偷把镜头拽走
       if (this.camYaw === null) this.camYaw = yaw ?? 0

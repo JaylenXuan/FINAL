@@ -245,7 +245,7 @@ export function createMinimap({ data, world, display = null }) {
       'font-size': 12,
       'font-weight': 700,
       'letter-spacing': '.08em'
-    }, baseG).textContent = ZONE_LABEL[room.id] || room.id
+    }, baseG).textContent = room.label || ZONE_LABEL[room.id] || room.id
   }
 
   function drawAnchorIcons(points, withLabels = false) {
@@ -351,7 +351,7 @@ export function createMinimap({ data, world, display = null }) {
         drawRoomBase(room, map)
         drawPlayerArrow()
         dynG._map = map
-        tag.textContent = ZONE_LABEL[zone] || zone
+    tag.textContent = (data.rooms || []).find((r) => r.id === zone)?.label || ZONE_LABEL[zone] || zone
         tag.style.display = 'block'
       } else {
         // 未知室内 zone：退回户外图

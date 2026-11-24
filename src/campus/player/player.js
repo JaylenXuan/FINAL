@@ -95,6 +95,9 @@ function zoneFree(zone, p) {
   if (zone.colliders) {
     for (const b of zone.colliders) if (boxOverlaps(p, b)) return false
   }
+  if (zone.extraColliders) {
+    for (const b of zone.extraColliders) if (boxOverlaps(p, b)) return false
+  }
   return true
 }
 
@@ -110,6 +113,9 @@ function collisionCount(zone, p) {
   }
   if (zone.colliders) {
     for (const b of zone.colliders) if (boxOverlaps(p, b)) n++
+  }
+  if (zone.extraColliders) {
+    for (const b of zone.extraColliders) if (boxOverlaps(p, b)) n++
   }
   return n
 }
@@ -144,14 +150,13 @@ function findEscape(zone, from, moveDir) {
  */
 function resolvePolys(p, list) {
   if (!list || !list.length) return
-  for (let pass = 0; pass < 3; pass++) {
+  for (let pass = 0; pass < 4; pass++) {
     let hit = false
     for (const item of list) {
       const b = item.bbox
       if (p.x < b.minX - RADIUS || p.x > b.maxX + RADIUS || p.z < b.minZ - RADIUS || p.z > b.maxZ + RADIUS) continue
-      if (!pointInPoly(p.x, p.z, item.poly)) continue
-      hit = true
 
+      // 找多边形边界上离人最近的点
       const poly = item.poly
       let bx = 0
       let bz = 0
@@ -173,16 +178,37 @@ function resolvePolys(p, list) {
           bz = pz
         }
       }
-      let dx = p.x - bx
-      let dz = p.z - bz
-      let len = Math.hypot(dx, dz)
-      if (len < 1e-4) {
-        dx = 0
-        dz = 1
-        len = 1
+
+      const inside = pointInPoly(p.x, p.z, poly)
+      const dist = Math.sqrt(bd)
+      // 人在楼里，或者身体半径已经压进墙：都推到楼外 RADIUS 处。
+      // 旧代码把「楼内的人」往最近边再推 RADIUS 进去，等于永远没推出来，
+      // 这就是一直能穿墙的根因。
+      if (inside) {
+        let dx = p.x - bx
+        let dz = p.z - bz
+        let len = Math.hypot(dx, dz)
+        if (len < 1e-4) {
+          dx = 0
+          dz = 1
+          len = 1
+        }
+        p.x = bx - (dx / len) * RADIUS
+        p.z = bz - (dz / len) * RADIUS
+        hit = true
+      } else if (dist < RADIUS) {
+        let dx = p.x - bx
+        let dz = p.z - bz
+        let len = Math.hypot(dx, dz)
+        if (len < 1e-4) {
+          dx = 0
+          dz = 1
+          len = 1
+        }
+        p.x = bx + (dx / len) * RADIUS
+        p.z = bz + (dz / len) * RADIUS
+        hit = true
       }
-      p.x = bx + (dx / len) * RADIUS
-      p.z = bz + (dz / len) * RADIUS
     }
     if (!hit) break
   }
@@ -481,6 +507,8 @@ export class Player {
     if (zone.containPoly) containPoly(this.pos, zone.containPoly)
     else if (zone.polyColliders) resolvePolys(this.pos, zone.polyColliders)
     else resolve(this.pos, zone.colliders)
+    // 合入的定制建筑等额外实体碰撞（不参与校园 L 形楼的多边形逻辑）
+    if (zone.extraColliders) resolve(this.pos, zone.extraColliders)
     if (zone.bounds) {
       this.pos.x = Math.min(zone.bounds.max.x, Math.max(zone.bounds.min.x, this.pos.x))
       this.pos.z = Math.min(zone.bounds.max.z, Math.max(zone.bounds.min.z, this.pos.z))
