@@ -1,6 +1,6 @@
 // 常驻小地图（GTA5 雷达风格）
 // - 全部由 data/world.json 的 building / room / prop 矩形生成 SVG，不手画
-// - 常态 220×220，死亡选点时放大到 320×320，只亮地图、锚点脉冲、键鼠选点
+// - 常态 220×220，死亡选点时放大到 520×520，只亮地图、锚点脉冲、键鼠选点
 // - 玩家箭头跟着 yaw 转；室内显示当前 room 的俯视图
 
 const NS = 'http://www.w3.org/2000/svg'
@@ -507,11 +507,16 @@ export function createMinimap({ data, world, display = null }) {
     if (playerRef) buildNormal()
   }
 
+  // 兼容远端 03e4244 的 setSelectMode 调用习惯
+  function setSelectMode(anchors, onConfirm) {
+    beginSelect(anchors, anchors[0]?.id, onConfirm)
+  }
+
   function setMode(next) {
     mode = next
     const big = mode === 'select'
-    host.style.width = big ? '320px' : `${SIZE}px`
-    host.style.height = big ? '320px' : `${SIZE}px`
+    host.style.width = big ? '520px' : `${SIZE}px`
+    host.style.height = big ? '520px' : `${SIZE}px`
     host.style.borderColor = big ? 'rgba(255,255,255,.95)' : 'rgba(220,232,244,.62)'
     host.style.pointerEvents = big ? 'auto' : 'none'
   }
@@ -565,6 +570,7 @@ export function createMinimap({ data, world, display = null }) {
     setMode,
     beginSelect,
     endSelect,
+    setSelectMode,
     move,
     pick,
     confirm,
