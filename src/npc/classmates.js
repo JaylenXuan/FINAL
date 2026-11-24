@@ -46,7 +46,7 @@ export class Classmates {
       g.position.set(ox + d.pos[0], oy + d.pos[1], oz + d.pos[2])
       g.visible = false
       this.scene.add(g)
-      const cm = { ...d, group: g, object: null, baseY: 0 }
+      const cm = { ...d, group: g, object: null, baseY: oy + d.pos[1] }
       if (d.kind === 'vrm') {
         cm.object = this._placeholder()
         g.add(cm.object)
@@ -228,7 +228,7 @@ export class Classmates {
       // 轻微呼吸浮动
       const t = performance.now() / 1000
       for (const cm of this.list) {
-        if (cm.group.children.length) cm.group.position.y = Math.sin(t * 1.6 + cm.pos[0]) * 0.012
+        if (cm.group.children.length) cm.group.position.y = cm.baseY + Math.sin(t * 1.6 + cm.pos[0]) * 0.012
       }
       this._faceCamera(camera)
     }

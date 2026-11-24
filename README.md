@@ -2,7 +2,7 @@
 
 浏览器里跑的 3D 校园小游戏：**全校园自由探索 + 进教学楼上课**。
 外面是港中深 OSM 真实轮廓的校园，玩家是紫色小恶魔龙，可冲刺、跳跃、举手机；
-走到「教学楼B」标志前按 E，进入定制教室，经历醒来眨眼、课堂点名、答对下课聊天 / 答错 WRONG 死亡选点。
+走到「教学楼B」门口按 E，进入旁边定制教学楼的一层教室，经历醒来眨眼、课堂点名、答对下课聊天 / 答错 WRONG 死亡选点。
 
 ## 跑起来
 
@@ -33,7 +33,7 @@ node scripts/test-bits.mjs   # 无头 bit 自测，不需要浏览器
 
 ## 演示流程
 
-1. 开局站在「教学楼B」标志前，镜头能看到龙和校园。
+1. 开局站在「教学楼B」门口，镜头能看到龙、校园和教学楼外立面。
 2. 按 E 进教室 → 2.2 秒眨眼醒来（黑→一条缝→闭→更亮→完全睁开）。
 3. 老师点名三选一：**正确答案是第 3 项**（Parents, stop micromanaging...）。
 4. 答对：`Correct. Class dismissed.`，可以在教室和鲸鱼娘 / 奶龙 / 奶蛙聊天（靠近 2m 按 E）。
@@ -43,7 +43,7 @@ node scripts/test-bits.mjs   # 无头 bit 自测，不需要浏览器
 ## 两套世界怎么合
 
 - `data/campus-osm.json`：真实校园建筑/道路/地形，`src/campus/world/` 生成可视世界。
-- `data/world.json`：一间 10×8 定制教室，放在远处独立坐标（x=5000），由 `src/world/builder.js` 生成课桌/碰撞/固定机位。
+- `data/world.json`：一间 10×8 定制教室，放在 `a_teach` 标志旁的教学楼B外立面里，由 `src/world/builder.js` 生成课桌/碰撞/固定机位。
 - `src/main.js` 把两套 `zones / anchors / interactables / roomCameras` 合成一个世界：外面 `a_teach` 的标志 = 教室入口，教室出口回到校园同一点。
 - 教室内部复用 `src/bits`、`src/core/director`、`src/ui/minimap`、`src/npc/classmates`；室外复用校园的 `src/campus/player`（龙模型/冲刺/跳跃/地形）与 `src/campus/world`。
 
@@ -72,7 +72,7 @@ docs/             PATCH / FRAMEWORK / REVIEW / DEV-NOTES（内容侧文档）
 
 ## 已知限制
 
-- 教室是从校园标志传送进去的独立房间，不是真实教学楼内部的逐层空间；门/走廊只在教室内部做了示意。
+- 教学楼B是放在校园 `a_teach` 标志旁的定制一层建筑，不是 OSM B 栋内部的逐层空间；入口有可见外立面和玻璃门，门内是教室。
 - 鲸鱼娘是静态站姿（长裙不能坐）；奶龙 / 奶蛙为 2D 立牌。
 - 校园里除教学楼B外的室内仍使用校园版生成大厅，机位质量不如定制教室。
 - 音频全部为 WebAudio 合成音。

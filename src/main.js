@@ -120,10 +120,7 @@ async function main() {
   let campusSource = ''
   let classroomZone = 'classroom'
   let classroomData = null
-  let teachAnchor = null
-  let teachOutAnchor = null
-  let teachDoor = null
-  let entranceAnchor = null
+  let classEntrance = null
 
   if (useCampusOsm) {
     world = buildCampusOSM(campusData, scene)
@@ -133,84 +130,57 @@ async function main() {
     campusSource = 'blocks'
   }
 
-  // 找「教学楼B」的室内锚点：玩家从外面 E 进去的不是生成的大厅，而是下面这间定制教室
-  for (const a of world.anchors.values()) {
-    if (a.zone.startsWith('in_') && /教学楼B/.test(a.label || '')) {
-      teachAnchor = a
-      break
+  // 定制教学楼B：放在 a_teach 标志旁的草地上，玩家从外面走到门口按 E 进教室
+  const teachPlaza = world.anchors.get('a_teach')
+  const siteOffset = (params.get('classsite') || '0,20').split(',').map(Number)
+  const siteX = (teachPlaza?.pos.x ?? 0) + (Number.isFinite(siteOffset[0]) ? siteOffset[0] : 0)
+  const siteZ = (teachPlaza?.pos.z ?? 0) + (Number.isFinite(siteOffset[1]) ? siteOffset[1] : -20)
+  // 地面有坡：取建筑占地范围内最高点再抬高，避免草地从教室里穿出来
+  let terrainMax = -Infinity
+  for (const dx of [-6, -3, 0, 3, 6]) {
+    for (const dz of [-6, -3, 0, 3, 6]) {
+      terrainMax = Math.max(terrainMax, heightAt(siteX + dx, siteZ + dz))
     }
   }
-  if (teachAnchor) {
-    const bid = teachAnchor.zone.replace(/^in_/, '')
-    teachOutAnchor = world.anchors.get(`a_out_${bid}`) || null
-    teachDoor = world.interactables.find(
-      (it) => it.zone === 'outdoor' && it.anchorId === teachAnchor.id && /教学楼B/.test(it.label || '')
-    )
-    // 校园生成的「门外」锚点有时贴在墙上，第三人称机位会钻进楼里。
-    // 从楼轮廓形心往门的方向算真正的外侧，在门外 5.5m 放一个安全出生点。
-    const b = (campusData?.buildings || []).find((x) => x.id === bid)
-    if (teachDoor && b?.polygon?.length) {
-      let cx = 0
-      let cz = 0
-      for (const [x, z] of b.polygon) {
-        cx += x
-        cz += z
-      }
-      cx /= b.polygon.length
-      cz /= b.polygon.length
-      let ox = teachDoor.pos.x - cx
-      let oz = teachDoor.pos.z - cz
-      const len = Math.hypot(ox, oz) || 1
-      ox /= len
-      oz /= len
-      const ex = teachDoor.pos.x + ox * 5.5
-      const ez = teachDoor.pos.z + oz * 5.5
-      entranceAnchor = {
-        id: 'a_teach_entrance',
-        label: '教学楼B 门口',
-        zone: 'outdoor',
-        pos: new THREE.Vector3(ex, 0, ez),
-        yaw: (Math.atan2(ox, oz) * 180) / Math.PI
-      }
-      world.anchors.set(entranceAnchor.id, entranceAnchor)
-    }
-  }
-
-  // 定制教室：复用 FINAL 的 10×8 教室（课桌/固定机位/碰撞），坐标放到远处
+  const siteY = terrainMax + 0.15
   const baseRoom = (worldData.rooms || []).find((r) => r.id === 'classroom')
+
   if (baseRoom) {
-    const FAR = 5000
+    const W = 12.4 // 外立面宽
+    const D = 10.4 // 外立面进深
     classroomData = {
       rooms: [
         {
           ...baseRoom,
-          origin: [FAR, 0, FAR],
+          origin: [siteX, siteY, siteZ],
           exit: 'a_out_classroom',
-          anchors: [{ id: 'a_classroom', pos: [FAR, 0, FAR + 2], yaw: 0 }]
+          anchors: [{ id: 'a_classroom', pos: [siteX, siteY, siteZ + 2], yaw: 0 }]
         }
       ]
     }
     const classWorld = buildWorld(classroomData, scene, { outdoor: false })
     world.zones[classroomZone] = classWorld.zones.classroom
-    // 定制教室地面几何顶面就在 y=0；campus Player 按 floorY 踩地
-    world.zones[classroomZone].floorY = 0
+    world.zones[classroomZone].floorY = siteY
     world.roomCameras[classroomZone] = classWorld.roomCameras.classroom
-    // 教室在远处独立坐标，楼顶挡住太阳，补两盏暖光才像在上课
-    for (const [lx, lz] of [
-      [FAR, FAR],
-      [FAR + 2.8, FAR - 2.2]
-    ]) {
-      const lamp = new THREE.PointLight(0xffe7c8, 26, 26, 2)
-      lamp.position.set(lx, 3.5, lz)
-      scene.add(lamp)
-    }
     for (const [id, a] of classWorld.anchors) world.anchors.set(id, a)
     for (const it of classWorld.interactables) world.interactables.push(it)
 
-    // 讲台旁站一个简单的老师剪影：没有老师模型，但空讲台会显得教室没人上课
+    // 教室里补暖光（楼顶挡住太阳）
+    for (const [lx, lz] of [
+      [siteX, siteZ],
+      [siteX + 2.8, siteZ - 2.2]
+    ]) {
+      const lamp = new THREE.PointLight(0xffe7c8, 26, 26, 2)
+      lamp.position.set(lx, siteY + 3.5, lz)
+      scene.add(lamp)
+    }
+
+    // 讲台旁老师剪影
     const teacher = new THREE.Group()
-    const teacherMat = new THREE.MeshStandardMaterial({ color: 0x2f3540, roughness: 0.9 })
-    const teacherBody = new THREE.Mesh(new THREE.CapsuleGeometry(0.24, 0.92, 6, 10), teacherMat)
+    const teacherBody = new THREE.Mesh(
+      new THREE.CapsuleGeometry(0.24, 0.92, 6, 10),
+      new THREE.MeshStandardMaterial({ color: 0x2f3540, roughness: 0.9 })
+    )
     teacherBody.position.y = 0.78
     teacherBody.castShadow = true
     teacher.add(teacherBody)
@@ -221,41 +191,133 @@ async function main() {
     teacherHead.position.y = 1.52
     teacherHead.castShadow = true
     teacher.add(teacherHead)
-    teacher.position.set(FAR, 0, FAR - 2.8)
+    teacher.position.set(siteX, siteY, siteZ - 2.8)
     scene.add(teacher)
-  }
 
-  // 教室入口：教学校B的广场标志就是「门口」。在 a_teach 加一个 E 交互，
-  // 既不用绕到楼背面找不存在的门模型，也避免第三人称机位卡进外墙。
-  const teachPlaza = world.anchors.get('a_teach')
-  if (teachPlaza) {
+    /* ---------- 室外教学楼B外立面 ---------- */
+    const stone = new THREE.MeshStandardMaterial({ color: 0xe7e1d4, roughness: 0.92 })
+    const trim = new THREE.MeshStandardMaterial({ color: 0x3e4650, roughness: 0.65 })
+    const glass = new THREE.MeshStandardMaterial({
+      color: 0x54697a,
+      roughness: 0.18,
+      metalness: 0.4,
+      transparent: true,
+      opacity: 0.72
+    })
+    const paving = new THREE.MeshStandardMaterial({ color: 0xb8b0a2, roughness: 0.96 })
+
+    // 屋顶 + 女儿墙
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(W, 0.4, D), trim)
+    roof.position.set(siteX, siteY + 4.25, siteZ)
+    roof.castShadow = true
+    roof.receiveShadow = true
+    scene.add(roof)
+    const parapet = new THREE.Mesh(new THREE.BoxGeometry(W, 0.5, 0.28), stone)
+    parapet.position.set(siteX, siteY + 4.7, siteZ + D / 2 - 0.14)
+    scene.add(parapet)
+
+    // 正面外墙：中间留 2.9m 门洞
+    const fh = 4.5
+    const opening = 2.9
+    const sideW = (W - opening) / 2
+    for (const sx of [-1, 1]) {
+      const side = new THREE.Mesh(new THREE.BoxGeometry(sideW, fh, 0.32), stone)
+      side.position.set(siteX + sx * (opening / 2 + sideW / 2), siteY + fh / 2, siteZ + D / 2 - 0.1)
+      side.castShadow = true
+      side.receiveShadow = true
+      scene.add(side)
+      // 外墙窗带
+      const win = new THREE.Mesh(new THREE.PlaneGeometry(sideW * 0.72, 1.55), glass)
+      win.position.set(siteX + sx * (opening / 2 + sideW / 2), siteY + 2.35, siteZ + D / 2 + 0.08)
+      scene.add(win)
+    }
+    const header = new THREE.Mesh(new THREE.BoxGeometry(W, fh - 2.95, 0.32), stone)
+    header.position.set(siteX, siteY + 2.95 + (fh - 2.95) / 2, siteZ + D / 2 - 0.1)
+    header.castShadow = true
+    scene.add(header)
+
+    // 玻璃门 + 门框
+    for (const sx of [-1, 1]) {
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.16, 2.85, 0.34), trim)
+      post.position.set(siteX + sx * 1.18, siteY + 1.425, siteZ + D / 2 + 0.12)
+      scene.add(post)
+    }
+    const lintel = new THREE.Mesh(new THREE.BoxGeometry(2.52, 0.2, 0.34), trim)
+    lintel.position.set(siteX, siteY + 2.96, siteZ + D / 2 + 0.12)
+    scene.add(lintel)
+    const leaf = new THREE.Mesh(new THREE.BoxGeometry(2.06, 2.56, 0.06), glass)
+    leaf.position.set(siteX, siteY + 1.32, siteZ + D / 2 + 0.16)
+    scene.add(leaf)
+    // 门把手
+    const knob = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.5, 0.06), trim)
+    knob.position.set(siteX + 0.78, siteY + 1.15, siteZ + D / 2 + 0.22)
+    scene.add(knob)
+
+    // 雨棚
+    const canopy = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.16, 1.8), trim)
+    canopy.position.set(siteX, siteY + 3.25, siteZ + D / 2 + 0.9)
+    canopy.castShadow = true
+    scene.add(canopy)
+
+    // 门牌
+    const cv = document.createElement('canvas')
+    cv.width = 640
+    cv.height = 160
+    const ctx = cv.getContext('2d')
+    ctx.fillStyle = '#0e1319'
+    ctx.fillRect(0, 0, cv.width, cv.height)
+    ctx.strokeStyle = 'rgba(255,206,120,.75)'
+    ctx.lineWidth = 8
+    ctx.strokeRect(4, 4, cv.width - 8, cv.height - 8)
+    ctx.fillStyle = '#f4f1ea'
+    ctx.font = '700 72px "Microsoft YaHei", sans-serif'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText('教学楼 B', cv.width / 2, 66)
+    ctx.font = '400 30px "Helvetica Neue", Arial, sans-serif'
+    ctx.fillStyle = 'rgba(255,206,120,.9)'
+    ctx.fillText('TEACHING B', cv.width / 2, 126)
+    const signTex = new THREE.CanvasTexture(cv)
+    signTex.colorSpace = THREE.SRGBColorSpace
+    const sign = new THREE.Mesh(
+      new THREE.PlaneGeometry(2.0, 0.5),
+      new THREE.MeshBasicMaterial({ map: signTex, transparent: true })
+    )
+    sign.position.set(siteX, siteY + 3.55, siteZ + D / 2 + 0.28)
+    scene.add(sign)
+
+    // 门前铺装
+    const path = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 6.4), paving)
+    path.rotation.x = -Math.PI / 2
+    path.position.set(siteX, siteY + 0.015, siteZ + D / 2 + 3.8)
+    path.receiveShadow = true
+    scene.add(path)
+
+    // 门口交互点
     world.interactables.push({
       zone: 'outdoor',
-      pos: new THREE.Vector3(teachPlaza.pos.x, 0, teachPlaza.pos.z),
-      radius: 4.6,
+      pos: new THREE.Vector3(siteX, 0, siteZ + D / 2 + 1.2),
+      radius: 4.5,
       anchorId: 'a_classroom',
       label: '进入教学楼B'
     })
-  }
 
-  // 室内出口：回到教学楼B的广场标志（安全、开阔）
-  const exitPoint = teachPlaza || entranceAnchor || teachOutAnchor
-  if (exitPoint) {
+    // 出生点在门前 6.5m
+    classEntrance = {
+      id: 'a_teach_entrance',
+      label: '教学楼B 门口',
+      zone: 'outdoor',
+      pos: new THREE.Vector3(siteX, 0, siteZ + D / 2 + 6.5),
+      yaw: 0
+    }
+    world.anchors.set(classEntrance.id, classEntrance)
     world.anchors.set('a_out_classroom', {
       id: 'a_out_classroom',
       label: '教学楼B 门口',
       zone: 'outdoor',
-      pos: exitPoint.pos.clone(),
-      yaw: exitPoint.yaw || 0
+      pos: classEntrance.pos.clone(),
+      yaw: 0
     })
-  }
-
-  // 外面那道教学楼B的门改成进「定制教室」
-  if (teachDoor) {
-    teachDoor.anchorId = 'a_classroom'
-    teachDoor.label = '教学楼B'
-    // 出生点在门外 5.5m；半径放大到 6.2，落地就能看到 E 提示
-    teachDoor.radius = 6.2
   }
 
   // 供 16 点刷点排除建筑
@@ -284,8 +346,8 @@ async function main() {
   if (deathAnchors.length) world.anchorList = deathAnchors
   // 地图显示坐标：教室在 x=5000，死亡地图上要落到教学楼B门口
   const anchorDisplay = new Map()
-  const entrancePoint = teachPlaza?.pos || entranceAnchor?.pos || teachOutAnchor?.pos
-  if (entrancePoint) anchorDisplay.set('a_classroom', { x: entrancePoint.x + 5, z: entrancePoint.z + 3 })
+  const entrancePoint = classEntrance?.pos || teachPlaza?.pos
+  if (entrancePoint) anchorDisplay.set('a_classroom', { x: entrancePoint.x, z: entrancePoint.z })
 
   if (params.get('probe') === '1') {
     document.title = world.anchorList
@@ -338,6 +400,9 @@ async function main() {
       size: [maxX - minX, 2, maxZ - minZ]
     }
   })
+  if (classEntrance) {
+    mapBuildings.push({ pos: [siteX, 0, siteZ], size: [12.4, 2, 10.4] })
+  }
   const mapData = {
     outdoor: {
       bounds: [
@@ -382,7 +447,7 @@ async function main() {
     })
   })
 
-  let lastAnchorId = useCampus ? world.anchorList[0].id : 'a_classroom'
+  let lastAnchorId = classEntrance?.id || (useCampus ? world.anchorList[0].id : 'a_classroom')
   let escape = null
   let prevSprinting = false
   let prevOverheated = false
@@ -576,7 +641,7 @@ async function main() {
   })
 
   /* ---------- 开场：站在教学楼B外面，走进门才开始上课 ---------- */
-  const defaultStart = 'a_teach'
+  const defaultStart = classEntrance?.id || 'a_teach'
   const startAnchor = params.get('anchor') || defaultStart
   const autoBit = params.get('bit')
   {
@@ -643,7 +708,7 @@ async function main() {
   const DIGITS = ['Digit1', 'Digit2', 'Digit3', 'Digit4']
   const shadowAnchor = new THREE.Vector3(1e9, 0, 1e9)
   // R 复位回「当前世界的出生点」：旧切片是广场，校园是校园中心
-  const resetAnchorId = useCampus ? world.anchorList[0].id : 'a_plaza'
+  const resetAnchorId = classEntrance?.id || (useCampus ? world.anchorList[0].id : 'a_plaza')
 
   function readKeys() {
     if (state.is(S.PLAY)) {
