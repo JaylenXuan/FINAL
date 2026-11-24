@@ -4,6 +4,30 @@ import { heightAt, terrainActive } from '../world/terrain.js'
 const LOOK_H = 1.2
 const SMOOTH = 8 // 8/s
 
+function pointInPoly(x, z, poly) {
+  let inside = false
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, zi] = poly[i]
+    const [xj, zj] = poly[j]
+    if ((zi > z) !== (zj > z) && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) inside = !inside
+  }
+  return inside
+}
+
+function cameraBlocked(world, x, y, z) {
+  const zone = world.zones?.outdoor
+  if (!zone) return false
+  for (const item of zone.polyColliders || []) {
+    const b = item.bbox
+    if (x < b.minX || x > b.maxX || z < b.minZ || z > b.maxZ) continue
+    if (pointInPoly(x, z, item.poly)) return true
+  }
+  for (const b of zone.extraColliders || []) {
+    if (x > b.min.x && x < b.max.x && z > b.min.z && z < b.max.z && y < b.max.y) return true
+  }
+  return false
+}
+
 export class CameraRig {
   constructor(camera, world) {
     this.camera = camera
@@ -107,16 +131,42 @@ export class CameraRig {
     return this.desired.set(x, y, z)
   }
 
+  /** 室外第三人称：镜头到玩家之间如果隔着一栋楼，就把机位收到墙前，避免穿墙 */
+  _avoidOutdoorWalls(targetPos) {
+    const world = this.world
+    const eyeY = targetPos.y + 1.2
+    const dx = this.desired.x - targetPos.x
+    const dy = this.desired.y - eyeY
+    const dz = this.desired.z - targetPos.z
+    const steps = 14
+    let free = 0
+    for (let i = 1; i <= steps; i++) {
+      const k = i / steps
+      const x = targetPos.x + dx * k
+      const y = eyeY + dy * k
+      const z = targetPos.z + dz * k
+      if (cameraBlocked(world, x, y, z)) break
+      free = k
+    }
+    if (free < 1) {
+      const k = Math.max(0.1, free - 0.04)
+      this.desired.set(targetPos.x + dx * k, eyeY + dy * k, targetPos.z + dz * k)
+    }
+    return this.desired
+  }
+
   /** 把相机放到目标背后（1 秒内不自动跟随） */
   _orbitPos(targetPos, yaw) {
     if (this.camYaw === null) this.camYaw = yaw
     const horiz = this.dist * Math.cos(this.camPitch)
     const vert = this.dist * Math.sin(this.camPitch)
-    return this.desired.set(
+    this.desired.set(
       targetPos.x + Math.sin(this.camYaw) * horiz,
       targetPos.y + 1.15 + vert,
       targetPos.z + Math.cos(this.camYaw) * horiz
     )
+    if (this.mode === 'outdoor') this._avoidOutdoorWalls(targetPos)
+    return this.desired
   }
 
   // 传送 / 开场必须硬切，否则 lerp 会从上一个位置慢慢飘过去，前几帧拍到的全是地面
@@ -169,7 +219,7 @@ export class CameraRig {
     const firstPerson = this.world.firstPersonZones?.has(zoneId)
     this.mode = room ? 'indoor' : firstPerson ? 'firstPerson' : follow ? 'indoorFollow' : 'outdoor'
     if (firstPerson) {
-      this.fov = 68
+      this.fov = 58
     } else if (follow) {
       this.dist = this.indoorDist
       this.camPitch = this.indoorPitch

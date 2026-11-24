@@ -613,7 +613,7 @@ async function main() {
         [siteX - CORR_W / 2 + 0.45, CORR_S - 0.45]
       ]
     }
-    world.indoorFollow.add('corridor')
+    world.firstPersonZones.add('corridor')
 
     // 走廊入口锚点（从室外进来）
     world.anchors.set('a_corridor', {
