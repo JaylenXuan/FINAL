@@ -4,9 +4,10 @@
   "version": "0.5.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --host 127.0.0.1 --port 5173",
+    "dev": "vite --host 127.0.0.1 --port 5181",
     "build": "vite build",
-    "preview": "vite preview --host 127.0.0.1 --port 4173"
+    "preview": "vite preview --host 127.0.0.1 --port 4181",
+    "validate": "node scripts/validate-world.mjs"
   },
   "dependencies": {
     "@pixiv/three-vrm": "^3.5.5",

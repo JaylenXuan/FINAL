@@ -2,6 +2,19 @@
 
 > 规则：只追加，不改别人的行；改 schema 必须先在这里写一条，等两人确认后再动代码。
 
+## Perf / Cleanup · 2026-11-24（内容侧）
+
+针对合并版“冷启动重、端口漂移、文档漂移”做的一轮整理：
+
+- **固定端口 5181**：`vite.config.js` 和 `package.json` 的 dev/preview 全部写死，5173 被别的项目占用也不会漂。
+- **VRM 懒加载**：`src/npc/classmates.js` 改成动态 `import('@pixiv/three-vrm')`，进教室或启动 5 秒后才拉 12MB 的 `deepseek-reset.vrm`；构建里 three-vrm 单独成 148KB chunk。
+- **标题卡可跳过**：`main.js` 里任意按键/点击立刻收掉 3.6 秒的 `CAMPUS` 标题。
+- **数据体检**：新增 `scripts/validate-world.mjs` + `npm run validate`，检查锚点/门/building/bit/台词引用。
+- **删死代码**：移除未使用的旧切片 `src/player/`。
+- **文档对齐**：README 的端口改 5181、死亡地图 320 → 520。
+
+验证：`npm run validate` 通过（7 锚点 / 3 门 / 2 bit / 23 台词）；`node scripts/test-bits.mjs` 9 组全过；`npm run build` 通过。
+
 ## Hotfix · 2026-11-20 晚（内容侧，已推）
 
 为了让项目能直接试玩，动了三个 Partner 文件，**review 时请确认**：

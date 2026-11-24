@@ -906,7 +906,13 @@ async function main() {
 
   // 默认进校园时给一张标题卡，让人先知道「这是什么、怎么操作」
   if (startAnchor === defaultStart) {
-    if (!selfie && !params.get('screen') && params.get('bird') !== '1') ui.showIntro(3.6)
+    if (!selfie && !params.get('screen') && params.get('bird') !== '1') {
+      ui.showIntro(3.6)
+      // 任意按键/点击可以提前收掉标题卡
+      const skipIntro = () => ui.hideIntro()
+      window.addEventListener('keydown', skipIntro, { once: true })
+      window.addEventListener('pointerdown', skipIntro, { once: true })
+    }
   }
 
   /* ---------- 每帧逻辑 ---------- */

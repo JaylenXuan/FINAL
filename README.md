@@ -8,12 +8,13 @@
 
 ```bash
 npm install
-npm run dev        # http://127.0.0.1:5173
+npm run dev        # http://127.0.0.1:5181
 npm run build      # 产物 dist/
+npm run validate   # 数据体检：锚点/门/台词
 node scripts/test-bits.mjs   # 无头 bit 自测，不需要浏览器
 ```
 
-默认 URL 直接进校园；Vite 端口被占用时改 `vite.config.js` 或 `npm run dev -- --port 5181`。
+默认 URL 直接进校园；5181 是项目固定端口（`vite.config.js` 与 `package.json` 都写死），端口被占时直接报错而不是漂移。
 
 ## 操作
 
@@ -38,7 +39,7 @@ node scripts/test-bits.mjs   # 无头 bit 自测，不需要浏览器
 2. 走到 01 班门口按 E 进教室 → 2.2 秒眨眼醒来（黑→一条缝→闭→更亮→完全睁开）。
 3. 老师点名三选一：**正确答案是第 3 项**（Parents, stop micromanaging...）。
 4. 答对：`Correct. Class dismissed.`，可以在 01 班和鲸鱼娘 / 奶龙 / 奶蛙聊天（靠近 2m 按 E）。
-5. 答错：字幕 `Wrong.`，直接 WRONG 死亡；全屏压黑，只有左上角地图放大到 320，四个锚点脉冲，键鼠选点后淡入醒来。
+5. 答错：字幕 `Wrong.`，直接 WRONG 死亡；全屏压黑，只有左上角地图放大到 520，四个锚点脉冲，键鼠选点后淡入醒来。
 6. 其他 7 间教室（考场、社团、实验室、自习室、音乐室、美术室、会议室）有各自的桌椅和主题色，鼠标可以自由环视。
 7. 教室门口按 E 可回校园；校园里举手机走路 4 秒会触发校长追逐（前方 10m 刷点，12 秒超时，进教室可逃）。
 

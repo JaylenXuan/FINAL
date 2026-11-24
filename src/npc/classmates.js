@@ -1,6 +1,5 @@
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
-import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm'
 
 /**
  * 下课后留在教室的三个同学：鲸鱼娘（VRM）+ 奶龙 / 奶蛙（透明立牌兜底）。
@@ -31,7 +30,9 @@ export class Classmates {
 
     this._tmp = new THREE.Vector3()
     this._build()
-    this._loadWhale()
+    // 12MB 的 VRM 不阻塞冷启动：进教室或 5 秒后再拉
+    this._whaleStarted = false
+    this._whaleTimer = 0
   }
 
   _build() {
@@ -103,6 +104,8 @@ export class Classmates {
     const cm = this.list.find((c) => c.kind === 'vrm')
     if (!cm) return
     try {
+      // 动态引入：three-vrm 只在真正要加载 VRM 时才进主包
+      const { VRMLoaderPlugin, VRMUtils } = await import('@pixiv/three-vrm')
       const loader = new GLTFLoader()
       loader.register((parser) => new VRMLoaderPlugin(parser))
       const gltf = await new Promise((resolve, reject) => {
@@ -217,6 +220,13 @@ export class Classmates {
 
   update(dt, camera) {
     this._refreshCanTalk()
+
+    this._whaleTimer += dt
+    if (!this._whaleStarted && (this.player.zone === 'classroom' || this._whaleTimer > 5)) {
+      this._whaleStarted = true
+      this._loadWhale()
+    }
+
     const visible = this.player.zone === 'classroom'
     for (const cm of this.list) cm.group.visible = visible
 
