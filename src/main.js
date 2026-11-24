@@ -490,11 +490,15 @@ async function main() {
     canopy.position.set(siteX, siteY + 3.35, zFront + 1.0)
     canopy.castShadow = true
     scene.add(canopy)
-    const path = new THREE.Mesh(new THREE.PlaneGeometry(8.0, 7.0), paving)
+    const path = new THREE.Mesh(new THREE.PlaneGeometry(12.0, 7.0), paving)
     path.rotation.x = -Math.PI / 2
-    path.position.set(siteX, siteY + 0.015, zFront + 3.5)
+    const pathY = heightAt(siteX, zFront + 3.5) + 0.055
+    path.position.set(siteX, pathY, zFront + 3.5)
     path.receiveShadow = true
     scene.add(path)
+    // 门前铺装也参与踩地高度：不再出现人从水泥板上面穿过去、落回草地
+    world.stepPads = world.stepPads || []
+    world.stepPads.push({ x: siteX, z: zFront + 3.5, hx: 6.0, hz: 3.5, cos: 1, sin: 0, top: pathY })
 
     /* ---------- 走廊内部 ---------- */
     // 地板 / 天花

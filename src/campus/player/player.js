@@ -9,6 +9,7 @@ export const GRAVITY = 22
 const RADIUS = 0.36
 const COYOTE = 0.12 // 跑出平台后还允许起跳的宽限
 const JUMP_BUFFER = 0.16 // 落地前提前按空格，落地瞬间自动起跳
+const TURN_SPEED = 2.7 // A/D / ←/→ 转身速度（rad/s）
 
 /**
  * 冲刺不是无限跑：能量条 0~1，按住 Shift 约 2.4 秒耗尽，
@@ -327,6 +328,46 @@ export class Player {
     if (zone && typeof zone.floorY === 'number') return zone.floorY
     // 草地 mesh 比 heightAt 低 3cm，马路高 5cm；取 +0.02 让鞋底在两种面上都不明显穿/浮。
     let y = heightAt(x, z) + (terrainActive() ? 0.02 : 0)
+    // 踩到 OSM 水泥路 / 步道时，鞋底要落在路面顶面，而不是落回草地高度。
+    const roads = this.world.roads
+    if (roads && roads.length && (!zone || zone.id === 'outdoor')) {
+      let bestDist = Infinity
+      let bestW = 0
+      let bestX = 0
+      let bestZ = 0
+      for (const r of roads) {
+        if (r.bridge || !r.path || r.path.length < 2) continue
+        for (let i = 0; i < r.path.length - 1; i++) {
+          const ax = r.path[i][0]
+          const az = r.path[i][1]
+          const bx = r.path[i + 1][0]
+          const bz = r.path[i + 1][1]
+          const dx = bx - ax
+          const dz = bz - az
+          const len2 = dx * dx + dz * dz || 1
+          let tt = ((x - ax) * dx + (z - az) * dz) / len2
+          tt = Math.max(0, Math.min(1, tt))
+          const px = ax + dx * tt
+          const pz = az + dz * tt
+          const d = Math.hypot(x - px, z - pz)
+          if (d < bestDist) {
+            bestDist = d
+            bestW = r.width
+            bestX = px
+            bestZ = pz
+          }
+        }
+      }
+      const surfaceW = Math.max(2.2, bestW * 1.45)
+      let roadY = -Infinity
+      if (bestW >= 5) {
+        if (bestDist <= surfaceW / 2) roadY = heightAt(bestX, bestZ) + 0.05
+        else if (bestDist <= surfaceW / 2 + 2.1) roadY = heightAt(bestX, bestZ) + 0.03
+      } else if (bestDist <= surfaceW / 2 + 0.3) {
+        roadY = heightAt(bestX, bestZ) + 0.045
+      }
+      if (roadY > y) y = roadY
+    }
     // 校园入口的三级台阶只有几何、没有地形，玩家踩上去要抬到台面高度，
     // 否则脚和身体会从台阶里穿过去。
     const pads = this.world.stepPads
@@ -451,19 +492,14 @@ export class Player {
   update(dt, input, camYaw) {
     const zone = this.activeZone
     const axis = input.axis()
-    // 移动方向跟着镜头：镜头转到哪边，W 就往哪边走（第三人称的标准手感）
-    if (typeof camYaw === 'number') {
-      const cs = Math.cos(camYaw)
-      const sn = Math.sin(camYaw)
-      const ax = axis.x * cs + axis.z * sn
-      const az = -axis.x * sn + axis.z * cs
-      axis.x = ax
-      axis.z = az
-    }
-    this.moving = axis.moving
+    // 坦克式操控：A/D（或 ←/→）只负责转身，W/S（或 ↑/↓）只负责前后走。
+    // 鼠标只转镜头，不再参与角色的朝向 / 移动方向。
+    if (Math.abs(axis.x) > 0.01) this.yaw -= axis.x * TURN_SPEED * dt
+    const drive = -axis.z
+    this.moving = Math.abs(drive) > 0.01
 
     /* ---------- 冲刺：能量条 + 过热冷却 ---------- */
-    const wantSprint = axis.moving && axis.running
+    const wantSprint = this.moving && axis.running
     this.sprinting = wantSprint && !this.overheated && this.stamina > 0
     if (this.sprinting) {
       this.stamina = Math.max(0, this.stamina - SPRINT.drain * dt)
@@ -478,8 +514,10 @@ export class Player {
     this.running = this.sprinting
 
     const speed = this.sprinting ? SPRINT_SPEED : WALK_SPEED
-    const targetX = axis.x * speed
-    const targetZ = axis.z * speed
+    const forwardX = -Math.sin(this.yaw)
+    const forwardZ = -Math.cos(this.yaw)
+    const targetX = forwardX * drive * speed
+    const targetZ = forwardZ * drive * speed
 
     // 加减速，别像贴地飞行；空中操控变弱
     let accel = 20
@@ -601,13 +639,6 @@ export class Player {
       this.pos.y = groundY
     }
     this.airHeight = Math.max(0, this.pos.y - groundY)
-
-    // 朝向：朝着实际速度方向转
-    if (axis.moving) {
-      const want = Math.atan2(this.vel.x, this.vel.z) + Math.PI
-      let diff = ((want - this.yaw + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI
-      this.yaw += diff * Math.min(1, 12 * dt)
-    }
 
     // 脚下地形坡度：人物整体绕脚底倾斜，脚才踩在坡面上
     this.updateGroundTilt(dt, zone)

@@ -2124,6 +2124,7 @@ export function buildCampusOSM(data, scene) {
     anchorList,
     interactables,
     roomCameras,
+    roads: view.roads,
     stepPads,
     districts: [],
     campusStats: stats
