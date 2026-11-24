@@ -371,6 +371,16 @@ export function createMinimap({ data, world, display = null }) {
     markers = []
     const map = makeMap(outdoorView())
     drawOutdoorBase(map)
+    const title = svgEl('text', {
+      x: SIZE / 2,
+      y: 16,
+      'text-anchor': 'middle',
+      fill: '#ffd166',
+      'font-size': 9,
+      'font-weight': 800,
+      'letter-spacing': '.22em'
+    }, dynG)
+    title.textContent = 'CHOOSE RESPAWN'
     const points = currentSelectPoints()
     for (let i = 0; i < points.length; i++) {
       const p = points[i]
@@ -397,7 +407,7 @@ export function createMinimap({ data, world, display = null }) {
       svgEl('circle', { cx: p.x, cy: p.y, r: 15, fill: 'transparent' }, g)
       const label = svgEl('text', {
         x: p.x,
-        y: p.y - 15,
+        y: p.y + (i % 2 === 0 ? -14 : 22),
         'text-anchor': 'middle',
         fill: 'rgba(240,245,250,.98)',
         'font-size': 10,
@@ -408,7 +418,7 @@ export function createMinimap({ data, world, display = null }) {
         'stroke-width': 3
       }, g)
       label.textContent = p.anchor.label || p.anchor.id
-      label.setAttribute('opacity', '0')
+      label.setAttribute('opacity', '0.9')
       g.style.cursor = 'pointer'
       g.addEventListener('click', (e) => {
         e.stopPropagation()
@@ -430,7 +440,7 @@ export function createMinimap({ data, world, display = null }) {
       stroke: 'rgba(6,9,14,.9)',
       'stroke-width': 2.4
     }, dynG)
-    hint.textContent = '↑↓ / 1-4  ·  Enter / 双击确认'
+    hint.textContent = '↑↓ / 1-4    ENTER / CLICK AGAIN'
     tag.style.display = 'none'
     drawFrame()
     paintSelection()
@@ -445,7 +455,7 @@ export function createMinimap({ data, world, display = null }) {
       m.dot.setAttribute('r', sel ? 6.4 : 5)
       m.ring.setAttribute('r', sel ? 13 : 8)
       m.ring.setAttribute('opacity', sel ? '1' : '.55')
-      m.label.setAttribute('opacity', sel ? '1' : '0')
+      m.label.setAttribute('opacity', sel ? '1' : '0.9')
       m.g.setAttribute('transform', sel ? `translate(${m.x} ${m.y}) scale(1.12) translate(${-m.x} ${-m.y})` : '')
     }
   }
