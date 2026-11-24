@@ -20,6 +20,11 @@ export class CameraRig {
     this.indoorPitch = 0
     this.indoorLookAt = new THREE.Vector3()
     this.dist = 6.2
+    this.outdoorDist = 6.2
+    this.outdoorPitch = 0.28
+    this.indoorDist = 5.2
+    this.indoorPitch = 0.26
+    this.indoorSide = 1.3
     this.followDelay = 0
     this.lookH = LOOK_H
     this.lookAt = new THREE.Vector3()
@@ -41,10 +46,17 @@ export class CameraRig {
     const d = Math.hypot(x, z) || 6
     this.dist = Math.max(4.5, d)
     this.camPitch = Math.atan2(y - 1.1, d)
+    this.outdoorDist = this.dist
+    this.outdoorPitch = this.camPitch
   }
 
   /** 鼠标拖拽 / 指针锁定的视角增量 */
   addOrbit(dx, dy) {
+    if (this.mode === 'firstPerson') {
+      this.camYaw -= dx * 0.0018
+      this.camPitch = Math.min(0.8, Math.max(-0.8, this.camPitch + dy * 0.0014))
+      return
+    }
     if (this.mode === 'indoor') {
       // 室内：位置不动，鼠标只旋转视线
       this.indoorYaw -= dx * 0.0018
@@ -76,6 +88,25 @@ export class CameraRig {
     return this.indoorLookAt
   }
 
+  /** 室内跟随镜头：仍然在玩家背后，但把机位夹在房间/走廊内部，避免穿墙 */
+  _indoorFollowPos(targetPos) {
+    if (this.camYaw === null) this.camYaw = 0
+    const horiz = this.indoorDist * Math.cos(this.camPitch)
+    const vert = this.indoorDist * Math.sin(this.camPitch)
+    let x = targetPos.x + Math.sin(this.camYaw) * horiz + Math.cos(this.camYaw) * this.indoorSide
+    let z = targetPos.z + Math.cos(this.camYaw) * horiz - Math.sin(this.camYaw) * this.indoorSide
+    let y = targetPos.y + 1.5 + vert
+    const zone = this.world.zones?.[this.zone]
+    if (zone?.origin && zone.size) {
+      const m = 0.42
+      x = Math.min(zone.origin.x + zone.size.w / 2 - m, Math.max(zone.origin.x - zone.size.w / 2 + m, x))
+      z = Math.min(zone.origin.z + zone.size.d / 2 - m, Math.max(zone.origin.z - zone.size.d / 2 + m, z))
+      const floor = zone.floorY ?? zone.origin.y
+      y = Math.min(floor + zone.size.h - 0.35, Math.max(floor + 1.15, y))
+    }
+    return this.desired.set(x, y, z)
+  }
+
   /** 把相机放到目标背后（1 秒内不自动跟随） */
   _orbitPos(targetPos, yaw) {
     if (this.camYaw === null) this.camYaw = yaw
@@ -91,11 +122,34 @@ export class CameraRig {
   // 传送 / 开场必须硬切，否则 lerp 会从上一个位置慢慢飘过去，前几帧拍到的全是地面
   // 室内没有跟随这一说：机位直接吃 roomCameras，否则会先从玩家头顶飘一段再飞进房间
   snapTo(targetPos, yaw) {
+    if (this.mode === 'firstPerson') {
+      if (typeof yaw === 'number') this.camYaw = yaw
+      this.camPitch = 0
+      this.camera.position.set(targetPos.x, targetPos.y + 1.55, targetPos.z)
+      this._tmp.set(
+        targetPos.x - Math.sin(this.camYaw) * 10,
+        targetPos.y + 1.55,
+        targetPos.z - Math.cos(this.camYaw) * 10
+      )
+      this.lookAt.copy(this._tmp)
+      this.camera.lookAt(this.lookAt)
+      return
+    }
     const room = this.world.roomCameras[this.zone]
     if (room) {
       this.camera.position.copy(room.pos)
       this._resetIndoorLook(room)
       this.lookAt.copy(this._indoorLook(room))
+      this.camera.lookAt(this.lookAt)
+      return
+    }
+    if (this.mode === 'indoorFollow') {
+      if (typeof yaw === 'number') this.camYaw = yaw
+      this._indoorFollowPos(targetPos)
+      this.camera.position.copy(this.desired)
+      this._tmp.copy(targetPos)
+      this._tmp.y += this.lookH
+      this.lookAt.copy(this._tmp)
       this.camera.lookAt(this.lookAt)
       return
     }
@@ -111,8 +165,22 @@ export class CameraRig {
   setZone(zoneId, snap = true) {
     this.zone = zoneId
     const room = this.world.roomCameras[zoneId]
-    this.mode = room ? 'indoor' : 'outdoor'
-    this.fov = room ? room.fov : 50
+    const follow = this.world.indoorFollow?.has(zoneId)
+    const firstPerson = this.world.firstPersonZones?.has(zoneId)
+    this.mode = room ? 'indoor' : firstPerson ? 'firstPerson' : follow ? 'indoorFollow' : 'outdoor'
+    if (firstPerson) {
+      this.fov = 68
+    } else if (follow) {
+      this.dist = this.indoorDist
+      this.camPitch = this.indoorPitch
+      this.fov = 56
+    } else if (room) {
+      this.fov = room.fov
+    } else {
+      this.dist = this.outdoorDist
+      this.camPitch = this.outdoorPitch
+      this.fov = 50
+    }
     this.camera.fov = this.fov
     this.camera.updateProjectionMatrix()
     if (snap && room) {
@@ -137,11 +205,30 @@ export class CameraRig {
 
     const room = this.world.roomCameras[this.zone]
 
-    if (room) {
-      // 室内：机位固定在教室里，鼠标可以自由转视线
+    if (this.mode === 'firstPerson') {
+      // 教室：第一人称，玩家眼睛高度；鼠标控制朝向
+      const eye = 1.55
+      this.camera.position.set(targetPos.x, targetPos.y + eye, targetPos.z)
+      const cp = Math.cos(this.camPitch)
+      this._tmp.set(
+        targetPos.x - Math.sin(this.camYaw) * cp * 10,
+        targetPos.y + eye - Math.sin(this.camPitch) * 10,
+        targetPos.z - Math.cos(this.camYaw) * cp * 10
+      )
+      this.lookAt.copy(this._tmp)
+    } else if (room) {
+      // 室内固定机位（校园原有大厅）；教室/走廊走 indoorFollow
       this.camera.position.lerp(room.pos, 1 - Math.exp(-6 * dt))
       const targetLook = this._indoorLook(room)
       this.lookAt.lerp(targetLook, 1 - Math.exp(-14 * dt))
+    } else if (this.mode === 'indoorFollow') {
+      if (this.camYaw === null) this.camYaw = yaw ?? 0
+      this._indoorFollowPos(targetPos)
+      const k = 1 - Math.exp(-10 * dt)
+      this.camera.position.lerp(this.desired, k)
+      this._tmp.copy(targetPos)
+      this._tmp.y += this.lookH
+      this.lookAt.lerp(this._tmp, k)
     } else {
       // 视角只由鼠标决定：键盘只负责移动，不许它偷偷把镜头拽走
       if (this.camYaw === null) this.camYaw = yaw ?? 0
@@ -159,7 +246,7 @@ export class CameraRig {
       this.lookAt.lerp(this._tmp, k)
     }
 
-    if (!room && terrainActive()) {
+    if (!room && this.mode === 'outdoor' && terrainActive()) {
       const need = heightAt(this.camera.position.x, this.camera.position.z) + 1.0
       if (this.camera.position.y < need) this.camera.position.y = need
     }

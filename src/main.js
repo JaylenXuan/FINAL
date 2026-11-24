@@ -146,6 +146,21 @@ async function main() {
   const baseRoom = (worldData.rooms || []).find((r) => r.id === 'classroom')
   const FARB = 5000
   const roomThemeByZone = new Map()
+  world.indoorFollow = new Set()
+  world.firstPersonZones = new Set()
+
+  // 教学楼B：外面只看得到主入口，进入后是一条横贯整栋楼的长走廊，
+  // 8 间教室的门都开在走廊北墙上。
+  const BLD_W = 40
+  const BLD_D = 10.4
+  const BLD_FH = 4.8
+  const CORR_W = 36
+  const CORR_D = 4.2
+  const CORR_H = 3.2
+  const CORR_Z = siteZ + BLD_D / 2 - 2.4
+  const CORR_N = CORR_Z - CORR_D / 2
+  const CORR_S = CORR_Z + CORR_D / 2
+  const CLASS_DOOR_X = (i) => -CORR_W / 2 + 3.2 + i * ((CORR_W - 6.4) / 7)
 
   const desk = (x, z) => ({ type: 'desk', pos: [x, 0, z] })
   const roomThemes = [
@@ -249,7 +264,7 @@ async function main() {
           id: theme.id,
           label: theme.nameEn,
           origin: [ox, 0, oz],
-          exit: 'a_out_classroom',
+          exit: `a_out_corridor_${i + 1}`,
           props: theme.props,
           anchors: [{ id: anchorId, pos: [ox, 0, oz + 2], yaw: 0 }]
         }
@@ -262,7 +277,7 @@ async function main() {
       if (!zone) continue
       world.zones[def.theme.id] = zone
       world.zones[def.theme.id].floorY = 0
-      world.roomCameras[def.theme.id] = classWorld.roomCameras[def.theme.id]
+      world.firstPersonZones.add(def.theme.id)
       for (const [id, a] of classWorld.anchors) {
         if (a.zone === def.theme.id) {
           a.label = def.theme.nameEn
@@ -270,8 +285,18 @@ async function main() {
         }
       }
     }
-    // 每个房间的出口交互（统一回到门外）
+    // 教室出口回到走廊对应门口，而不是直接回室外
     for (const it of classWorld.interactables) world.interactables.push(it)
+    for (let i = 0; i < roomThemes.length; i++) {
+      const exitId = `a_out_corridor_${i + 1}`
+      world.anchors.set(exitId, {
+        id: exitId,
+        label: roomThemes[i].nameEn,
+        zone: 'corridor',
+        pos: new THREE.Vector3(siteX + CLASS_DOOR_X(i), siteY, CORR_N + 1.15),
+        yaw: -90
+      })
+    }
 
     // 每个房间的光、墙面主题色和简单陈设
     const addBox = (x, y, z, w, h, d, color) => {
@@ -365,15 +390,8 @@ async function main() {
     scene.add(teacher)
   }
 
-  /* ---------- 室外教学楼B：一排 8 间教室的门 ---------- */
+  /* ---------- 教学楼B：一个主入口 + 一条长走廊 + 8 间教室门 ---------- */
   if (baseRoom && roomThemes.length) {
-    const W = 40
-    const D = 10.4
-    const fh = 4.8
-    const doorCount = roomThemes.length
-    const usable = W - 6
-    const step = usable / doorCount
-    const doorX = (i) => -W / 2 + 3 + step * (i + 0.5)
     const stone = new THREE.MeshStandardMaterial({ color: 0xe7e1d4, roughness: 0.92 })
     const trim = new THREE.MeshStandardMaterial({ color: 0x3e4650, roughness: 0.65 })
     const glass = new THREE.MeshStandardMaterial({
@@ -384,27 +402,60 @@ async function main() {
       opacity: 0.72
     })
     const paving = new THREE.MeshStandardMaterial({ color: 0xb8b0a2, roughness: 0.96 })
+    const tile = new THREE.MeshStandardMaterial({ color: 0xd7d1c4, roughness: 0.9 })
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0xf0ece3, roughness: 0.92 })
+
+    const zFront = siteZ + BLD_D / 2
+    const zBack = siteZ - BLD_D / 2
 
     // 屋顶 / 女儿墙
-    const roof = new THREE.Mesh(new THREE.BoxGeometry(W + 0.4, 0.4, D + 0.4), trim)
-    roof.position.set(siteX, siteY + 4.55, siteZ)
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(BLD_W + 0.4, 0.4, BLD_D + 0.4), trim)
+    roof.position.set(siteX, siteY + BLD_FH + 0.2, siteZ)
     roof.castShadow = true
     roof.receiveShadow = true
     scene.add(roof)
     for (const side of [-1, 1]) {
-      const parapet = new THREE.Mesh(new THREE.BoxGeometry(W + 0.4, 0.5, 0.26), stone)
-      parapet.position.set(siteX, siteY + 5.0, siteZ + side * (D / 2 + 0.2))
+      const parapet = new THREE.Mesh(new THREE.BoxGeometry(BLD_W + 0.4, 0.5, 0.26), stone)
+      parapet.position.set(siteX, siteY + BLD_FH + 0.65, siteZ + side * (BLD_D / 2 + 0.2))
       scene.add(parapet)
     }
 
-    // 一整面白墙；8 个门作为深色玻璃门嵌在墙上
-    const frontWall = new THREE.Mesh(new THREE.BoxGeometry(W, fh, 0.32), stone)
-    frontWall.position.set(siteX, siteY + fh / 2, siteZ + D / 2 - 0.1)
-    frontWall.castShadow = true
-    frontWall.receiveShadow = true
-    scene.add(frontWall)
+    // 正面外墙：中间一个主入口，两侧是窗
+    const entryW = 4.0
+    const sideW = (BLD_W - entryW) / 2
+    for (const sx of [-1, 1]) {
+      const side = new THREE.Mesh(new THREE.BoxGeometry(sideW, BLD_FH, 0.32), stone)
+      side.position.set(siteX + sx * (entryW / 2 + sideW / 2), siteY + BLD_FH / 2, zFront - 0.1)
+      side.castShadow = true
+      side.receiveShadow = true
+      scene.add(side)
+      // 外墙窗带
+      for (let k = 0; k < 3; k++) {
+        const wx = siteX + sx * (entryW / 2 + sideW * (0.2 + k * 0.3))
+        const win = new THREE.Mesh(new THREE.PlaneGeometry(sideW * 0.22, 1.5), glass)
+        win.position.set(wx, siteY + 2.7, zFront + 0.08)
+        scene.add(win)
+      }
+    }
+    const header = new THREE.Mesh(new THREE.BoxGeometry(entryW, BLD_FH - 3.0, 0.32), stone)
+    header.position.set(siteX, siteY + 3.0 + (BLD_FH - 3.0) / 2, zFront - 0.1)
+    header.castShadow = true
+    scene.add(header)
 
-    // 每个门：深色门套 + 玻璃 + 上方小门牌
+    // 主入口门框 + 玻璃门
+    for (const sx of [-1, 1]) {
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.18, 3.0, 0.34), trim)
+      post.position.set(siteX + sx * 1.82, siteY + 1.5, zFront + 0.12)
+      scene.add(post)
+    }
+    const lintel = new THREE.Mesh(new THREE.BoxGeometry(3.82, 0.2, 0.34), trim)
+    lintel.position.set(siteX, siteY + 3.0, zFront + 0.12)
+    scene.add(lintel)
+    const doorLeaf = new THREE.Mesh(new THREE.BoxGeometry(3.4, 2.76, 0.06), glass)
+    doorLeaf.position.set(siteX, siteY + 1.4, zFront + 0.16)
+    scene.add(doorLeaf)
+
+    // 门牌
     const makeSignTexture = (text, sub) => {
       const cv = document.createElement('canvas')
       cv.width = 512
@@ -427,90 +478,174 @@ async function main() {
       tex.colorSpace = THREE.SRGBColorSpace
       return tex
     }
+    const bigSign = new THREE.Mesh(
+      new THREE.PlaneGeometry(5.0, 0.76),
+      new THREE.MeshBasicMaterial({ map: makeSignTexture('教学楼 B', 'TEACHING B · CORRIDOR + 8 CLASSROOMS'), transparent: true })
+    )
+    bigSign.position.set(siteX, siteY + 3.65, zFront + 0.2)
+    scene.add(bigSign)
 
-    for (let i = 0; i < doorCount; i++) {
+    // 雨棚 + 门前铺装
+    const canopy = new THREE.Mesh(new THREE.BoxGeometry(8.2, 0.16, 1.8), trim)
+    canopy.position.set(siteX, siteY + 3.35, zFront + 1.0)
+    canopy.castShadow = true
+    scene.add(canopy)
+    const path = new THREE.Mesh(new THREE.PlaneGeometry(8.0, 7.0), paving)
+    path.rotation.x = -Math.PI / 2
+    path.position.set(siteX, siteY + 0.015, zFront + 3.5)
+    path.receiveShadow = true
+    scene.add(path)
+
+    /* ---------- 走廊内部 ---------- */
+    // 地板 / 天花
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(CORR_W, 0.2, CORR_D), tile)
+    floor.position.set(siteX, siteY - 0.1, CORR_Z)
+    floor.receiveShadow = true
+    scene.add(floor)
+    const ceiling = new THREE.Mesh(new THREE.BoxGeometry(CORR_W, 0.2, CORR_D), wallMat)
+    ceiling.position.set(siteX, siteY + CORR_H + 0.1, CORR_Z)
+    scene.add(ceiling)
+
+    // 北墙：教室门开在这面墙上
+    const northWall = new THREE.Mesh(new THREE.BoxGeometry(CORR_W, CORR_H, 0.18), wallMat)
+    northWall.position.set(siteX, siteY + CORR_H / 2, CORR_N - 0.09)
+    northWall.receiveShadow = true
+    scene.add(northWall)
+
+    // 南墙：中间留主入口
+    const southSeg = (CORR_W - 4.2) / 2
+    for (const sx of [-1, 1]) {
+      const seg = new THREE.Mesh(new THREE.BoxGeometry(southSeg, CORR_H, 0.18), wallMat)
+      seg.position.set(siteX + sx * (2.1 + southSeg / 2), siteY + CORR_H / 2, CORR_S + 0.09)
+      seg.receiveShadow = true
+      scene.add(seg)
+    }
+    const southHead = new THREE.Mesh(new THREE.BoxGeometry(4.2, CORR_H - 2.9, 0.18), wallMat)
+    southHead.position.set(siteX, siteY + 2.9 + (CORR_H - 2.9) / 2, CORR_S + 0.09)
+    scene.add(southHead)
+
+    // 两端墙
+    for (const sx of [-1, 1]) {
+      const end = new THREE.Mesh(new THREE.BoxGeometry(0.2, CORR_H, CORR_D), wallMat)
+      end.position.set(siteX + sx * (CORR_W / 2 + 0.1), siteY + CORR_H / 2, CORR_Z)
+      scene.add(end)
+    }
+
+    // 走廊灯
+    for (let i = -2; i <= 2; i++) {
+      const lamp = new THREE.PointLight(0xffe7c8, 18, 17, 2)
+      lamp.position.set(siteX + i * 7.2, siteY + 2.85, CORR_Z)
+      scene.add(lamp)
+      const fixture = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.04, 0.35), new THREE.MeshStandardMaterial({ color: 0xfff2d8, emissive: 0xffe3b0 }))
+      fixture.position.set(siteX + i * 7.2, siteY + 3.16, CORR_Z)
+      scene.add(fixture)
+    }
+
+    // 走廊北墙上的 8 间教室门
+    for (let i = 0; i < roomThemes.length; i++) {
       const theme = roomThemes[i]
-      const dx = doorX(i)
-      const zFace = siteZ + D / 2 + 0.12
+      const dx = CLASS_DOOR_X(i)
+      const zFace = CORR_N + 0.03
       for (const sx of [-1, 1]) {
-        const post = new THREE.Mesh(new THREE.BoxGeometry(0.15, 2.85, 0.34), trim)
-        post.position.set(siteX + dx + sx * 1.08, siteY + 1.425, zFace)
+        const post = new THREE.Mesh(new THREE.BoxGeometry(0.14, 2.7, 0.18), trim)
+        post.position.set(siteX + dx + sx * 1.02, siteY + 1.35, zFace + 0.02)
         scene.add(post)
       }
-      const lintel = new THREE.Mesh(new THREE.BoxGeometry(2.32, 0.18, 0.34), trim)
-      lintel.position.set(siteX + dx, siteY + 2.86, zFace)
+      const lintel = new THREE.Mesh(new THREE.BoxGeometry(2.18, 0.16, 0.18), trim)
+      lintel.position.set(siteX + dx, siteY + 2.72, zFace + 0.02)
       scene.add(lintel)
-      const leaf = new THREE.Mesh(new THREE.BoxGeometry(1.9, 2.56, 0.06), glass)
-      leaf.position.set(siteX + dx, siteY + 1.32, zFace + 0.04)
+      const leaf = new THREE.Mesh(new THREE.BoxGeometry(1.84, 2.5, 0.04), glass)
+      leaf.position.set(siteX + dx, siteY + 1.25, zFace + 0.06)
       scene.add(leaf)
       const sign = new THREE.Mesh(
-        new THREE.PlaneGeometry(1.5, 0.42),
+        new THREE.PlaneGeometry(1.35, 0.36),
         new THREE.MeshBasicMaterial({
           map: makeSignTexture(theme.code, theme.nameZh.replace(/^\d+\s*/, '')),
           transparent: true
         })
       )
-      sign.position.set(siteX + dx, siteY + 3.25, zFace + 0.2)
+      sign.position.set(siteX + dx, siteY + 2.95, zFace + 0.1)
       scene.add(sign)
-      // 门牌下方的暖色引导条
       const bar = new THREE.Mesh(
-        new THREE.BoxGeometry(1.5, 0.04, 0.04),
+        new THREE.BoxGeometry(1.35, 0.035, 0.035),
         new THREE.MeshBasicMaterial({ color: 0xffc46b })
       )
-      bar.position.set(siteX + dx, siteY + 3.0, zFace + 0.2)
+      bar.position.set(siteX + dx, siteY + 2.74, zFace + 0.1)
       scene.add(bar)
 
-      // 每扇门一个交互点
       world.interactables.push({
-        zone: 'outdoor',
-        pos: new THREE.Vector3(siteX + dx, 0, siteZ + D / 2 + 1.2),
-        radius: 2.9,
+        zone: 'corridor',
+        pos: new THREE.Vector3(siteX + dx, siteY, CORR_N + 1.05),
+        radius: 2.4,
         anchorId: i === 0 ? 'a_classroom' : `a_classroom_${i + 1}`,
         label: theme.nameZh
       })
     }
 
-    // 雨棚正面大字招牌（从门口看得到，不用抬头）
-    const bigSign = new THREE.Mesh(
-      new THREE.PlaneGeometry(5.2, 0.78),
-      new THREE.MeshBasicMaterial({ map: makeSignTexture('教学楼 B', 'TEACHING B · 8 CLASSROOMS'), transparent: true })
-    )
-    bigSign.position.set(siteX, siteY + 3.46, siteZ + D / 2 + 1.86)
-    scene.add(bigSign)
+    // 走廊主入口（从外面进来）/ 走廊出口
+    world.interactables.push({
+      zone: 'outdoor',
+      pos: new THREE.Vector3(siteX, 0, zFront + 1.1),
+      radius: 3.2,
+      anchorId: 'a_corridor',
+      label: '进入教学楼B'
+    })
+    world.interactables.push({
+      zone: 'corridor',
+      pos: new THREE.Vector3(siteX, siteY, CORR_S - 1.0),
+      radius: 2.6,
+      anchorId: 'a_out_corridor',
+      label: '走出教学楼B'
+    })
 
-    // 门前铺装 + 雨棚
-    const path = new THREE.Mesh(new THREE.PlaneGeometry(W - 2, 6.5), paving)
-    path.rotation.x = -Math.PI / 2
-    path.position.set(siteX, siteY + 0.015, siteZ + D / 2 + 3.25)
-    path.receiveShadow = true
-    scene.add(path)
-    const canopy = new THREE.Mesh(new THREE.BoxGeometry(W + 1.2, 0.16, 1.7), trim)
-    canopy.position.set(siteX, siteY + 3.45, siteZ + D / 2 + 1.0)
-    canopy.castShadow = true
-    scene.add(canopy)
+    // 走廊 zone：玩家被关在走廊里，不能从门洞穿墙
+    world.zones.corridor = {
+      id: 'corridor',
+      label: 'Corridor',
+      floorY: siteY,
+      origin: new THREE.Vector3(siteX, siteY, CORR_Z),
+      size: { w: CORR_W, d: CORR_D, h: CORR_H },
+      colliders: [],
+      containPoly: [
+        [siteX - CORR_W / 2 + 0.45, CORR_N + 0.45],
+        [siteX + CORR_W / 2 - 0.45, CORR_N + 0.45],
+        [siteX + CORR_W / 2 - 0.45, CORR_S - 0.45],
+        [siteX - CORR_W / 2 + 0.45, CORR_S - 0.45]
+      ]
+    }
+    world.indoorFollow.add('corridor')
 
-    // 出生点正对 01 班教室门，其他 7 间教室往右一字排开
+    // 走廊入口锚点（从室外进来）
+    world.anchors.set('a_corridor', {
+      id: 'a_corridor',
+      label: '教学楼B 走廊',
+      zone: 'corridor',
+      pos: new THREE.Vector3(siteX - CORR_W / 2 + 5.0, siteY, CORR_Z),
+      yaw: -90
+    })
+
+    // 出生点：门外正对主入口
     classEntrance = {
       id: 'a_teach_entrance',
       label: '教学楼B 门口',
       zone: 'outdoor',
-      pos: new THREE.Vector3(siteX + doorX(0), 0, siteZ + D / 2 + 6.5),
+      pos: new THREE.Vector3(siteX, 0, zFront + 6.5),
       yaw: 0
     }
     world.anchors.set(classEntrance.id, classEntrance)
-    world.anchors.set('a_out_classroom', {
-      id: 'a_out_classroom',
+    world.anchors.set('a_out_corridor', {
+      id: 'a_out_corridor',
       label: '教学楼B 门口',
       zone: 'outdoor',
       pos: classEntrance.pos.clone(),
       yaw: 0
     })
 
-    // 整栋楼挡住人；8 个门用 E 交互
+    // 整栋楼挡住人；主入口用 E
     world.zones.outdoor.extraColliders = world.zones.outdoor.extraColliders || []
     world.zones.outdoor.extraColliders.push({
-      min: new THREE.Vector3(siteX - W / 2, 0, siteZ - D / 2),
-      max: new THREE.Vector3(siteX + W / 2, fh, siteZ + D / 2)
+      min: new THREE.Vector3(siteX - BLD_W / 2, 0, zBack),
+      max: new THREE.Vector3(siteX + BLD_W / 2, BLD_FH, zFront)
     })
   }
 
@@ -622,7 +757,17 @@ async function main() {
         }
       ]
     },
-    rooms: classroomData?.rooms || []
+    rooms: [
+      ...(classroomData?.rooms || []),
+      {
+        id: 'corridor',
+        label: 'Corridor',
+        shell: `room_${CORR_W}x${CORR_D}x${CORR_H}`,
+        origin: [siteX, siteY, CORR_Z],
+        props: [],
+        anchors: []
+      }
+    ]
   }
   const minimap = createMinimap({ data: mapData, world, display: anchorDisplay })
 
@@ -673,8 +818,8 @@ async function main() {
     rig.snapTo(player.pos, player.yaw)
     applyZoneFx(player.zone)
     ui.setZone(a.label)
-    // 进任何教室就把标题卡收掉，别挡上课/参观
-    if (roomThemeByZone.has(player.zone)) ui.hideIntro()
+    // 进走廊/教室就把标题卡收掉，别挡上课/参观
+    if (player.zone === 'corridor' || roomThemeByZone.has(player.zone)) ui.hideIntro()
     // 第一次从校园走进主教室：黑→睁一条缝→闭→更亮→完全睁开，再开始上课
     if (player.zone === classroomZone && state.is(S.PLAY)) {
       state.set(S.WAKEUP)
@@ -976,6 +1121,7 @@ async function main() {
       } else if (state.is(S.PLAY)) {
         // 答题面板开着时冻结角色，别在题目后面盲走
         if (!bits.questionOpen) player.update(dt, input, rig.camYaw)
+        player.group.visible = !world.firstPersonZones.has(player.zone)
         handlePlayerEvents()
         spawnSprintTrail(dt)
         bits.update(dt)
