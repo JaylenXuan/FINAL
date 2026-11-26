@@ -10,6 +10,8 @@
 - 五个应用：`MESSAGES`（3 条未读：食堂、图书馆、社团）、`MAP`（区域/星/锚点）、`CAMERA`（取景框 + REC）、`MUSIC`（三首曲目播放态）、`SYSTEM`（build/署名）
 - 手机开着走路仍会触发校长追逐；死亡时自动收起；ESC 关闭
 - 新增 `src/ui/phone.js`，`main.js` 接入 Tab 与死亡流程
+- 像素字体 `Press Start 2P`（本地 woff2，OFL）只用于英文标签；图标改成 16×16 内联 SVG
+- 应用名收成短标签：`MSG / MAP / CAM / MUS / SYS`
 
 ## UI · 2026-11-24（内容侧）
 

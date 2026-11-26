@@ -17,6 +17,11 @@
       --shadow: 0 18px 48px rgba(0, 0, 0, .28);
     }
     * { box-sizing: border-box; }
+    @font-face {
+      font-family: 'PressStart';
+      src: url('/fonts/pressstart2p.woff2') format('woff2');
+      font-display: swap;
+    }
     html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0d12; }
     body {
       font-family: "Inter", "SF Pro Display", "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
@@ -255,6 +260,20 @@
     }
     @keyframes rec { 50% { opacity: .2; } }
     #phone .p-play { color: #ffcc66; cursor: pointer; }
+    /* 像素字体只给标签，正文仍用等宽字体保证可读 */
+    #phone .p-status, #phone .p-title, #phone .p-name, #phone .p-back,
+    #phone .p-row .t, #phone .p-row .s, #phone .p-note {
+      font-family: 'PressStart', 'Courier New', monospace;
+      letter-spacing: 0;
+    }
+    #phone .p-status { font-size: 7px; }
+    #phone .p-title { font-size: 8px; }
+    #phone .p-name { font-size: 7px; }
+    #phone .p-back { font-size: 7px; }
+    #phone .p-row .t { font-size: 8px; }
+    #phone .p-row .s { font-size: 7px; }
+    #phone .p-note { font-size: 7px; line-height: 2; }
+    #phone .p-ico svg { width: 22px; height: 22px; display: block; margin: 0 auto 7px; }
 
     /* ---------- class question ---------- */
     #classq {

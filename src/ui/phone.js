@@ -1,10 +1,18 @@
 // 像素风手机：常驻右下，Tab 开关；内部有消息 / 地图 / 相机 / 音乐 / 系统五个应用。
+const ICON = {
+  msg: '<svg viewBox="0 0 16 16" shape-rendering="crispEdges"><rect x="1.5" y="3.5" width="13" height="9" fill="none" stroke="currentColor"/><path d="M2 4l6 4.5L14 4" fill="none" stroke="currentColor"/></svg>',
+  map: '<svg viewBox="0 0 16 16" shape-rendering="crispEdges"><path d="M1.5 3l4-1.5 5 1.5 4-1.5v11l-4 1.5-5-1.5-4 1.5z" fill="none" stroke="currentColor"/><path d="M5.5 1.5v12M10.5 3v12" stroke="currentColor"/></svg>',
+  cam: '<svg viewBox="0 0 16 16" shape-rendering="crispEdges"><rect x="2.5" y="5.5" width="11" height="7" fill="none" stroke="currentColor"/><rect x="6" y="3.5" width="4" height="2" fill="currentColor"/><circle cx="8" cy="9" r="2" fill="none" stroke="currentColor"/></svg>',
+  mus: '<svg viewBox="0 0 16 16" shape-rendering="crispEdges"><path d="M6 3v8.5" stroke="currentColor"/><rect x="6" y="3" width="6" height="1.5" fill="currentColor"/><rect x="10.5" y="3" width="1.5" height="6" fill="currentColor"/><circle cx="4.5" cy="11.5" r="1.8" fill="currentColor"/></svg>',
+  sys: '<svg viewBox="0 0 16 16" shape-rendering="crispEdges"><rect x="2" y="3" width="12" height="1.5" fill="currentColor"/><rect x="2" y="7.25" width="12" height="1.5" fill="currentColor"/><rect x="2" y="11.5" width="12" height="1.5" fill="currentColor"/><rect x="4" y="1.5" width="2" height="4.5" fill="currentColor"/><rect x="9.5" y="5.75" width="2" height="4.5" fill="currentColor"/><rect x="6" y="10" width="2" height="4.5" fill="currentColor"/></svg>'
+}
+
 const APPS = [
-  { id: 'msg', name: 'MESSAGES', ico: '✉', badge: 3 },
-  { id: 'map', name: 'MAP', ico: '▣' },
-  { id: 'cam', name: 'CAMERA', ico: '◎' },
-  { id: 'music', name: 'MUSIC', ico: '♪' },
-  { id: 'sys', name: 'SYSTEM', ico: '⚙' }
+  { id: 'msg', name: 'MSG', svg: ICON.msg, badge: 3 },
+  { id: 'map', name: 'MAP', svg: ICON.map },
+  { id: 'cam', name: 'CAM', svg: ICON.cam },
+  { id: 'music', name: 'MUS', svg: ICON.mus },
+  { id: 'sys', name: 'SYS', svg: ICON.sys }
 ]
 
 const THREADS = [
@@ -129,7 +137,7 @@ export class PhoneUI {
     const tiles = APPS.map((a) => `
       <div class="p-app" data-app="${a.id}">
         ${a.badge ? `<span class="p-badge">${a.badge}</span>` : ''}
-        <div class="p-ico">${a.ico}</div>
+        <div class="p-ico">${a.svg}</div>
         <div class="p-name">${a.name}</div>
       </div>`).join('')
     return `

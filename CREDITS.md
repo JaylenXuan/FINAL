@@ -38,4 +38,5 @@
 
 ## 字体
 
-界面使用系统字体（Helvetica Neue / Arial / Microsoft YaHei），未嵌入任何字体文件，无署名要求。
+- 界面主体使用系统字体（Helvetica Neue / Arial / Microsoft YaHei）。
+- `public/fonts/pressstart2p.woff2`：Press Start 2P，作者 CodeMan38，SIL Open Font License 1.1，仅用于手机 UI 的英文标签；中文仍走系统字体。
