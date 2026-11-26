@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
+import { mergeGeometries, mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import {
   PALETTE,
   styleKeyFor,
@@ -1167,7 +1167,18 @@ export function buildCampusOSM(data, scene) {
       [0.7, 4.65, 0.95, 1.35]
     ]
     const crownParts = blobs.map(([x, y, z, r]) => {
-      const g = new THREE.IcosahedronGeometry(r, 1)
+      // 先合并重复顶点，再做法线平滑：树冠有起伏但不会变成一块块切面
+      const g = mergeVertices(new THREE.IcosahedronGeometry(r, 1), 1e-4)
+      // 沿法线做轻微不规则起伏，避免每棵树都像一个完美的气球
+      const pos = g.attributes.position
+      for (let v = 0; v < pos.count; v++) {
+        const px = pos.getX(v)
+        const py = pos.getY(v)
+        const pz = pos.getZ(v)
+        const bump = 1 + 0.07 * Math.sin(px * 3.1 + py * 2.3 + pz * 1.7) + 0.035 * Math.cos(px * 5.2 - pz * 3.4)
+        pos.setXYZ(v, px * bump, py * bump, pz * bump)
+      }
+      g.computeVertexNormals()
       g.scale(1, 0.86 + (r % 0.2) * 0.3, 1)
       g.translate(x, y, z)
       return g
