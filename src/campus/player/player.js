@@ -9,7 +9,7 @@ export const GRAVITY = 22
 const RADIUS = 0.36
 const COYOTE = 0.12 // 跑出平台后还允许起跳的宽限
 const JUMP_BUFFER = 0.16 // 落地前提前按空格，落地瞬间自动起跳
-const TURN_SPEED = 2.7 // A/D / ←/→ 转身速度（rad/s）
+const TURN_SPEED = 2.7 // 角色朝移动方向转身的速度（rad/s），A/D 不再原地转圈
 
 /**
  * 冲刺不是无限跑：能量条 0~1，按住 Shift 约 2.4 秒耗尽，
@@ -492,11 +492,32 @@ export class Player {
   update(dt, input, camYaw) {
     const zone = this.activeZone
     const axis = input.axis()
-    // 坦克式操控：A/D（或 ←/→）只负责转身，W/S（或 ↑/↓）只负责前后走。
-    // 鼠标只转镜头，不再参与角色的朝向 / 移动方向。
-    if (Math.abs(axis.x) > 0.01) this.yaw -= axis.x * TURN_SPEED * dt
+    // 相机相对移动：W/S 前后、A/D 左右平移，不再用 A/D 原地转身。
+    // 移动方向以镜头朝向为基准；角色只朝「实际移动方向」平滑转身，不会绕圈。
     const drive = -axis.z
-    this.moving = Math.abs(drive) > 0.01
+    const strafe = axis.x
+    let moveX = 0
+    let moveZ = 0
+    const inputLen = Math.hypot(drive, strafe)
+    if (inputLen > 0.01) {
+      const yaw = typeof camYaw === 'number' ? camYaw : this.yaw
+      const fx = -Math.sin(yaw)
+      const fz = -Math.cos(yaw)
+      const rx = Math.cos(yaw)
+      const rz = -Math.sin(yaw)
+      moveX = fx * drive + rx * strafe
+      moveZ = fz * drive + rz * strafe
+      const len = Math.hypot(moveX, moveZ)
+      if (len > 0.001) {
+        moveX /= len
+        moveZ /= len
+      }
+      // 面朝移动方向，而不是面朝 A/D 的「转身轴」
+      const targetYaw = Math.atan2(-moveX, -moveZ)
+      const diff = Math.atan2(Math.sin(targetYaw - this.yaw), Math.cos(targetYaw - this.yaw))
+      this.yaw += THREE.MathUtils.clamp(diff, -TURN_SPEED * dt, TURN_SPEED * dt)
+    }
+    this.moving = inputLen > 0.01
 
     /* ---------- 冲刺：能量条 + 过热冷却 ---------- */
     const wantSprint = this.moving && axis.running
@@ -514,10 +535,8 @@ export class Player {
     this.running = this.sprinting
 
     const speed = this.sprinting ? SPRINT_SPEED : WALK_SPEED
-    const forwardX = -Math.sin(this.yaw)
-    const forwardZ = -Math.cos(this.yaw)
-    const targetX = forwardX * drive * speed
-    const targetZ = forwardZ * drive * speed
+    const targetX = moveX * speed
+    const targetZ = moveZ * speed
 
     // 加减速，别像贴地飞行；空中操控变弱
     let accel = 20

@@ -184,6 +184,7 @@ async function main() {
       nameZh: '01 班教室',
       accent: 0x3f6a52,
       light: 0xffe7c8,
+      anchorX: -1.5,
       props: baseRoom?.props || [],
       decor: 'homeroom'
     },
@@ -194,6 +195,7 @@ async function main() {
       nameZh: '02 考场',
       accent: 0x58709e,
       light: 0xdfeafc,
+      anchorX: -2.15,
       props: [
         { type: 'podium', pos: [0, 0, -3] },
         ...[-3.2, -1.1, 1.1, 3.2].flatMap((x) => [desk(x, -1.1), desk(x, 1.1), desk(x, 2.6)])
@@ -207,6 +209,7 @@ async function main() {
       nameZh: '03 社团活动室',
       accent: 0x9a6044,
       light: 0xffd9ae,
+      anchorX: -1.3,
       props: [desk(-2.6, -1.2), desk(2.6, -1.2), desk(-2.6, 1.6), desk(2.6, 1.6), desk(0, 2.8)],
       decor: 'club'
     },
@@ -217,6 +220,7 @@ async function main() {
       nameZh: '04 实验室',
       accent: 0x3f8494,
       light: 0xc8f2ff,
+      anchorX: -1.25,
       props: [desk(-2.5, -1.2), desk(2.5, -1.2), desk(-2.5, 1.2), desk(2.5, 1.2)],
       decor: 'lab'
     },
@@ -227,6 +231,7 @@ async function main() {
       nameZh: '05 自习室',
       accent: 0x7a6a4c,
       light: 0xfff0d2,
+      anchorX: -2,
       props: [desk(-3, -1), desk(-1, -1), desk(1, -1), desk(3, -1), desk(-3, 1), desk(-1, 1), desk(1, 1), desk(3, 1)],
       decor: 'study'
     },
@@ -237,6 +242,7 @@ async function main() {
       nameZh: '06 音乐室',
       accent: 0x8a4a86,
       light: 0xffd2f2,
+      anchorX: -1.5,
       props: [desk(-3.2, 2.1), desk(3.2, 2.1)],
       decor: 'music'
     },
@@ -247,6 +253,7 @@ async function main() {
       nameZh: '07 美术室',
       accent: 0xa07f45,
       light: 0xfff2c8,
+      anchorX: -1.6,
       props: [desk(-3.2, -1.5), desk(0, -1.5), desk(3.2, -1.5)],
       decor: 'art'
     },
@@ -257,6 +264,7 @@ async function main() {
       nameZh: '08 会议室',
       accent: 0x4a6a8a,
       light: 0xd5e6ff,
+      anchorX: -1.5,
       props: [desk(-3, -1.4), desk(0, -1.4), desk(3, -1.4), desk(-3, 1.4), desk(0, 1.4), desk(3, 1.4)],
       decor: 'meeting'
     }
@@ -267,6 +275,9 @@ async function main() {
       const ox = FARB + i * 18
       const oz = FARB
       const anchorId = i === 0 ? 'a_classroom' : `a_classroom_${i + 1}`
+      // 出生点放进课桌之间的过道：W 能直接往前走，A/D 也能左右平移，不会被桌子卡住。
+      const ax = ox + (theme.anchorX ?? -1.5)
+      const az = oz
       roomThemeByZone.set(theme.id, theme)
       return {
         theme,
@@ -280,7 +291,7 @@ async function main() {
           exit: `a_out_corridor_${i + 1}`,
           props: theme.props,
           // 站得离后墙远一点，第三人称镜头才有空间退到角色身后
-          anchors: [{ id: anchorId, pos: [ox, 0, oz], yaw: 0 }]
+          anchors: [{ id: anchorId, pos: [ax, 0, az], yaw: 0 }]
         }
       }
     })
