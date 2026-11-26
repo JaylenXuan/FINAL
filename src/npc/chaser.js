@@ -12,7 +12,8 @@ const TYPES = {
 }
 
 // 用户提供的三视图拆出来的四向立绘：正面 / 左侧 / 背面 / 右侧。
-// 全部由 public/models/chaser 下的透明 PNG 提供；没有额外生成费用。
+// 每张图按“上半身 / 下半身”切开：上半身保持原图，下半身按左右腿
+// （侧视图按整条下身）绕胯部摆动，这样纸片人也能有走路迈腿的动作。
 const SPRITE_VIEWS = ['front', 'left', 'back', 'right']
 const SPRITE_URLS = {
   front: '/models/chaser/principal_front.png',
@@ -22,10 +23,33 @@ const SPRITE_URLS = {
 }
 const SPRITE_W = 0.82
 const SPRITE_H = 2.0
-const SPRITE_BOTTOM_Y = 0
+const SPRITE_CANVAS_H = 1024
+// 三张立绘的大腿分叉线大约都在 690px；用它作为胯部转轴。
+const HIP_CANVAS_Y = 690
+const HIP_V = 1 - HIP_CANVAS_Y / SPRITE_CANVAS_H
+const HIP_WORLD = SPRITE_H * HIP_V
+const LEG_H = HIP_WORLD + 0.035
+const LEG_PIVOT_X = 0.09
+const LEG_LIFT = 0.06
+const WALK_RATE = 9.0
 
 function shortestAngle(a) {
   return Math.atan2(Math.sin(a), Math.cos(a))
+}
+
+// 用一张全立绘贴图裁出局部四边面：UV 负责裁图，顶点负责位置。
+// 这样四向 PNG 不需要再切成十几张小图，加载量和仓库体积都保持很小。
+function makeCropGeometry(width, height, u0, v0, u1, v1) {
+  const geo = new THREE.PlaneGeometry(width, height)
+  const pos = geo.attributes.position
+  const uv = geo.attributes.uv
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i)
+    const y = pos.getY(i)
+    uv.setXY(i, x > 0 ? u1 : u0, y > 0 ? v1 : v0)
+  }
+  uv.needsUpdate = true
+  return geo
 }
 
 function makeShadowTexture() {
@@ -97,8 +121,9 @@ export class Chaser {
     this.textures = {}
     this._loaded = 0
     this._loadErrors = 0
+    this._sideView = false
 
-    // 一个 root 管位置，billboard 只负责朝向镜头（四向选图）。
+    // 一个 root 管位置，body 内的纸片分层负责朝向镜头和迈腿。
     this.root = new THREE.Group()
     this.root.visible = false
     scene.add(this.root)
@@ -110,11 +135,8 @@ export class Chaser {
       depthWrite: true,
       toneMapped: false
     })
-    this.billboard = new THREE.Mesh(new THREE.PlaneGeometry(SPRITE_W, SPRITE_H), this.material)
-    this.billboard.position.y = SPRITE_H / 2
-    this.billboard.visible = false
-    this.billboard.frustumCulled = true
-    this.root.add(this.billboard)
+
+    this._buildBody()
 
     const shadowTex = makeShadowTexture()
     const shadowMat = new THREE.MeshBasicMaterial({
@@ -148,6 +170,67 @@ export class Chaser {
     this._loadSprites()
   }
 
+  _buildBody() {
+    this.body = new THREE.Group()
+    this.body.visible = false
+    this.root.add(this.body)
+
+    // 上半身：从胯部向上的整块立绘。
+    const upperH = SPRITE_H - HIP_WORLD
+    this.upper = new THREE.Mesh(
+      makeCropGeometry(SPRITE_W, upperH, 0, HIP_V, 1, 1),
+      this.material
+    )
+    this.upper.position.y = HIP_WORLD + upperH / 2
+    this.upper.position.z = 0.002
+    this.upper.renderOrder = 2
+    this.body.add(this.upper)
+
+    // 正面 / 背面：左腿、右腿分别绕自己的胯部摆动。
+    this.legL = new THREE.Group()
+    this.legL.position.set(-LEG_PIVOT_X, HIP_WORLD + 0.035, 0)
+    this.legLMesh = new THREE.Mesh(
+      makeCropGeometry(SPRITE_W / 2, LEG_H, 0, 0, 0.5, HIP_V),
+      this.material
+    )
+    this.legLMesh.position.set(-0.115, -LEG_H / 2, 0)
+    this.legLMesh.renderOrder = 1
+    this.legL.add(this.legLMesh)
+    this.body.add(this.legL)
+
+    this.legR = new THREE.Group()
+    this.legR.position.set(LEG_PIVOT_X, HIP_WORLD + 0.035, 0)
+    this.legRMesh = new THREE.Mesh(
+      makeCropGeometry(SPRITE_W / 2, LEG_H, 0.5, 0, 1, HIP_V),
+      this.material
+    )
+    this.legRMesh.position.set(0.115, -LEG_H / 2, 0)
+    this.legRMesh.renderOrder = 1
+    this.legR.add(this.legRMesh)
+    this.body.add(this.legR)
+
+    // 侧面：两张腿在画面里几乎重叠，不能硬切；整条下身一起绕胯摆动。
+    this.lowerWhole = new THREE.Group()
+    this.lowerWhole.position.set(0, HIP_WORLD + 0.035, 0)
+    this.lowerWholeMesh = new THREE.Mesh(
+      makeCropGeometry(SPRITE_W, LEG_H, 0, 0, 1, HIP_V),
+      this.material
+    )
+    this.lowerWholeMesh.position.set(0, -LEG_H / 2, 0)
+    this.lowerWholeMesh.renderOrder = 1
+    this.lowerWhole.add(this.lowerWholeMesh)
+    this.body.add(this.lowerWhole)
+
+    this._setLegVisibility(false)
+  }
+
+  _setLegVisibility(side) {
+    this._sideView = side
+    this.legL.visible = !side
+    this.legR.visible = !side
+    this.lowerWhole.visible = side
+  }
+
   _loadSprites() {
     const loader = new THREE.TextureLoader()
     for (const view of SPRITE_VIEWS) {
@@ -159,14 +242,14 @@ export class Chaser {
           this.textures[view] = tex
           this._loaded += 1
           this.fallback.visible = false
-          this.billboard.visible = true
+          this.body.visible = true
           if (this.view === view || !this.material.map) this._applyView(view)
         },
         undefined,
         () => {
           this._loadErrors += 1
           if (this._loaded === 0 && this._loadErrors >= SPRITE_VIEWS.length) {
-            this.billboard.visible = false
+            this.body.visible = false
             this.fallback.visible = true
           }
         }
@@ -178,11 +261,13 @@ export class Chaser {
     const tex = this.textures[view] || this.textures.front
     if (!tex) return
     this.view = view
-    if (this.material.map === tex) return
-    this.material.map = tex
-    this.material.needsUpdate = true
-    this.billboard.visible = true
+    if (this.material.map !== tex) {
+      this.material.map = tex
+      this.material.needsUpdate = true
+    }
+    this.body.visible = true
     this.fallback.visible = false
+    this._setLegVisibility(view === 'left' || view === 'right')
   }
 
   _chooseView(cameraAngle) {
@@ -204,10 +289,11 @@ export class Chaser {
     this.captured = false
     this.held = false
     this.chaseTime = 0
+    this.walkPhase = 0
     this.zone = zoneId
     this.pos.copy(from || this.farEnd(zoneId))
     this.root.visible = true
-    this.billboard.visible = this._loaded > 0
+    this.body.visible = this._loaded > 0
     this.fallback.visible = this._loaded === 0
     this.sync()
   }
@@ -316,6 +402,8 @@ export class Chaser {
       this.pos.z = Math.min(zone.bounds.max.z, Math.max(zone.bounds.min.z, this.pos.z))
     }
 
+    // 跑到玩家身边时步频略微加快，脚步和追逐速度匹配。
+    this.walkPhase += dt * WALK_RATE * (this.speed / CHASER_SPEED)
     this.sync()
 
     if (dist < 1.1 && !this.captured) {
@@ -329,7 +417,7 @@ export class Chaser {
     const gy = heightAt(this.pos.x, this.pos.z) + (terrainActive() ? 0.02 : 0)
     this.root.position.set(this.pos.x, gy, this.pos.z)
 
-    // 立绘始终面向镜头；根据镜头在角色哪一侧切换四向图。
+    // 分层立绘始终面向镜头；根据镜头在角色哪一侧切换四向图。
     const cam = this.camera
     const cameraAngle = cam
       ? Math.atan2(cam.position.x - this.pos.x, cam.position.z - this.pos.z)
@@ -337,17 +425,40 @@ export class Chaser {
     this.root.rotation.y = cameraAngle
     this._chooseView(cameraAngle)
 
-    this.walkPhase += 0.16
-    const bob = this.held ? 0 : Math.abs(Math.sin(this.walkPhase)) * 0.025
-    this.billboard.position.y = SPRITE_H / 2 + bob
-    this.billboard.rotation.z = this.held ? 0 : Math.sin(this.walkPhase) * 0.012
-    this.shadow.position.y = 0.018 + bob * 0.15
+    const s = this.held ? 0 : Math.sin(this.walkPhase)
+    const liftL = Math.max(0, s) * LEG_LIFT
+    const liftR = Math.max(0, -s) * LEG_LIFT
+
+    if (this._sideView) {
+      // 侧面：整条下半身前后摆，脚尖跟着抬落。
+      this.lowerWhole.rotation.z = s * 0.095
+      this.lowerWhole.position.y = HIP_WORLD + 0.035 + Math.max(0, Math.abs(s)) * 0.012
+      this.legL.rotation.set(0, 0, 0)
+      this.legR.rotation.set(0, 0, 0)
+    } else {
+      // 正面 / 背面：两条腿绕胯前后迈，脚步有抬落差。
+      this.legL.rotation.x = s * 0.24
+      this.legR.rotation.x = -s * 0.24
+      this.legL.rotation.z = s * 0.035
+      this.legR.rotation.z = -s * 0.035
+      this.legL.position.y = HIP_WORLD + 0.035 + liftL
+      this.legR.position.y = HIP_WORLD + 0.035 + liftR
+      this.lowerWhole.rotation.z = 0
+    }
+
+    // 上半身轻微起伏，和脚步错开半拍，纸片人也有重量感。
+    const upperBase = HIP_WORLD + (SPRITE_H - HIP_WORLD) / 2
+    this.upper.position.y = upperBase + Math.abs(s) * 0.018
+    this.body.rotation.z = s * 0.006
+    this.shadow.scale.x = 1 + Math.abs(s) * 0.035
+    this.shadow.scale.y = 1 - Math.abs(s) * 0.02
   }
 
   despawn() {
     this.active = false
     this.held = false
     this.chaseTime = 0
+    this.walkPhase = 0
     this.root.visible = false
   }
 
