@@ -730,7 +730,7 @@ async function main() {
   const dust = createDust(scene)
   const player = new Player(scene, world)
   const rig = new CameraRig(camera, world)
-  const chaser = new Chaser(scene, world)
+  const chaser = new Chaser(scene, world, camera)
   // 校园是 1km 尺度，跟随机位要抬高拉远，否则永远只看得到脚下一块地。
   // 加了腿之后角色更高，机位略降一点，跑跳动作才看得清。
   rig.setOffset(0, 2.8, 5.6, 1.3)

@@ -11,6 +11,41 @@ const TYPES = {
   guard: { color: 0x2f3b47, speed: CHASER_SPEED, height: 1.75 }
 }
 
+// 用户提供的三视图拆出来的四向立绘：正面 / 左侧 / 背面 / 右侧。
+// 全部由 public/models/chaser 下的透明 PNG 提供；没有额外生成费用。
+const SPRITE_VIEWS = ['front', 'left', 'back', 'right']
+const SPRITE_URLS = {
+  front: '/models/chaser/principal_front.png',
+  left: '/models/chaser/principal_left.png',
+  back: '/models/chaser/principal_back.png',
+  right: '/models/chaser/principal_right.png'
+}
+const SPRITE_W = 0.82
+const SPRITE_H = 2.0
+const SPRITE_BOTTOM_Y = 0
+
+function shortestAngle(a) {
+  return Math.atan2(Math.sin(a), Math.cos(a))
+}
+
+function makeShadowTexture() {
+  if (typeof document === 'undefined') return null
+  const size = 96
+  const canvas = document.createElement('canvas')
+  canvas.width = size
+  canvas.height = size
+  const ctx = canvas.getContext('2d')
+  const g = ctx.createRadialGradient(size / 2, size / 2, 4, size / 2, size / 2, size / 2)
+  g.addColorStop(0, 'rgba(0,0,0,0.34)')
+  g.addColorStop(0.55, 'rgba(0,0,0,0.14)')
+  g.addColorStop(1, 'rgba(0,0,0,0)')
+  ctx.fillStyle = g
+  ctx.fillRect(0, 0, size, size)
+  const tex = new THREE.CanvasTexture(canvas)
+  tex.colorSpace = THREE.SRGBColorSpace
+  return tex
+}
+
 // 圆 vs AABB 推出。和 player.js 同一套手感：校长也不能穿教学楼。
 function resolveCircle(p, radius, boxes) {
   if (!boxes || !boxes.length) return
@@ -44,8 +79,9 @@ function insideXZ(p, box) {
 }
 
 export class Chaser {
-  constructor(scene, world) {
+  constructor(scene, world, camera = null) {
     this.world = world
+    this.camera = camera
     this.active = false
     this.type = null
     this.speed = CHASER_SPEED
@@ -55,36 +91,124 @@ export class Chaser {
     this.captured = false
     this.chaseTime = 0
     this.held = false
+    this.facing = 0
+    this.view = 'front'
+    this.walkPhase = 0
+    this.textures = {}
+    this._loaded = 0
+    this._loadErrors = 0
 
-    const mat = new THREE.MeshStandardMaterial({ color: TYPES.principal.color, roughness: 0.85 })
-    this.body = new THREE.Mesh(new THREE.CapsuleGeometry(0.32, 1.14, 6, 12), mat)
-    this.body.position.y = 0.89
-    this.body.visible = false
-    this.body.castShadow = true
-    scene.add(this.body)
+    // 一个 root 管位置，billboard 只负责朝向镜头（四向选图）。
+    this.root = new THREE.Group()
+    this.root.visible = false
+    scene.add(this.root)
 
-    this.head = new THREE.Mesh(
+    this.material = new THREE.MeshBasicMaterial({
+      transparent: true,
+      alphaTest: 0.38,
+      side: THREE.DoubleSide,
+      depthWrite: true,
+      toneMapped: false
+    })
+    this.billboard = new THREE.Mesh(new THREE.PlaneGeometry(SPRITE_W, SPRITE_H), this.material)
+    this.billboard.position.y = SPRITE_H / 2
+    this.billboard.visible = false
+    this.billboard.frustumCulled = true
+    this.root.add(this.billboard)
+
+    const shadowTex = makeShadowTexture()
+    const shadowMat = new THREE.MeshBasicMaterial({
+      map: shadowTex,
+      transparent: true,
+      opacity: 0.9,
+      depthWrite: false,
+      toneMapped: false
+    })
+    this.shadow = new THREE.Mesh(new THREE.PlaneGeometry(1.05, 0.52), shadowMat)
+    this.shadow.rotation.x = -Math.PI / 2
+    this.shadow.position.y = 0.018
+    this.shadow.renderOrder = 1
+    this.root.add(this.shadow)
+
+    // 图片加载失败时才退回旧胶囊，避免学校长真的"消失"。
+    this.fallback = new THREE.Group()
+    this.fallback.visible = true
+    const fbMat = new THREE.MeshStandardMaterial({ color: TYPES.principal.color, roughness: 0.85 })
+    const fbBody = new THREE.Mesh(new THREE.CapsuleGeometry(0.32, 1.14, 6, 12), fbMat)
+    fbBody.position.y = 0.89
+    fbBody.castShadow = true
+    const fbHead = new THREE.Mesh(
       new THREE.SphereGeometry(0.2, 14, 12),
       new THREE.MeshStandardMaterial({ color: 0xd7b48f, roughness: 0.9 })
     )
-    this.head.position.y = 1.63
-    this.head.visible = false
-    scene.add(this.head)
+    fbHead.position.y = 1.63
+    this.fallback.add(fbBody, fbHead)
+    this.root.add(this.fallback)
+
+    this._loadSprites()
+  }
+
+  _loadSprites() {
+    const loader = new THREE.TextureLoader()
+    for (const view of SPRITE_VIEWS) {
+      loader.load(
+        SPRITE_URLS[view],
+        (tex) => {
+          tex.colorSpace = THREE.SRGBColorSpace
+          tex.anisotropy = 4
+          this.textures[view] = tex
+          this._loaded += 1
+          this.fallback.visible = false
+          this.billboard.visible = true
+          if (this.view === view || !this.material.map) this._applyView(view)
+        },
+        undefined,
+        () => {
+          this._loadErrors += 1
+          if (this._loaded === 0 && this._loadErrors >= SPRITE_VIEWS.length) {
+            this.billboard.visible = false
+            this.fallback.visible = true
+          }
+        }
+      )
+    }
+  }
+
+  _applyView(view) {
+    const tex = this.textures[view] || this.textures.front
+    if (!tex) return
+    this.view = view
+    if (this.material.map === tex) return
+    this.material.map = tex
+    this.material.needsUpdate = true
+    this.billboard.visible = true
+    this.fallback.visible = false
+  }
+
+  _chooseView(cameraAngle) {
+    // cameraAngle = 从校长指向镜头的方向。
+    // rel=0 时镜头在校长正前方，用正面；rel=±π 时在背后，用背面。
+    const rel = shortestAngle(cameraAngle - this.facing)
+    let view = 'front'
+    if (Math.abs(rel) > 2.35) view = 'back'
+    else if (rel > 0.62) view = 'left'
+    else if (rel < -0.62) view = 'right'
+    this._applyView(view)
   }
 
   spawn(type = 'principal', zoneId = 'outdoor', from = null) {
     const cfg = TYPES[type] || TYPES.principal
     this.type = type
     this.speed = cfg.speed
-    this.body.material = new THREE.MeshStandardMaterial({ color: cfg.color, roughness: 0.85 })
     this.active = true
     this.captured = false
     this.held = false
     this.chaseTime = 0
     this.zone = zoneId
     this.pos.copy(from || this.farEnd(zoneId))
-    this.body.visible = true
-    this.head.visible = true
+    this.root.visible = true
+    this.billboard.visible = this._loaded > 0
+    this.fallback.visible = this._loaded === 0
     this.sync()
   }
 
@@ -151,7 +275,7 @@ export class Chaser {
     if (!this.active) return
     this.held = true
     this.pos.set(x, 0, z)
-    this.body.rotation.y = Math.atan2(lookX - x, lookZ - z) + Math.PI
+    this.facing = Math.atan2(lookX - x, lookZ - z)
     this.sync()
   }
 
@@ -181,7 +305,7 @@ export class Chaser {
       const nz = dz / dist
       this.pos.x += nx * this.speed * dt
       this.pos.z += nz * this.speed * dt
-      this.body.rotation.y = Math.atan2(nx, nz) + Math.PI
+      this.facing = Math.atan2(nx, nz)
     }
 
     // 防穿墙：追逐路径上也要被楼体挡住，不能从教学楼里穿出来
@@ -203,20 +327,28 @@ export class Chaser {
   sync() {
     // 校园地形有高差：校长也要踩在地上，不然会半截陷进山坡或浮着追人
     const gy = heightAt(this.pos.x, this.pos.z) + (terrainActive() ? 0.02 : 0)
-    this.body.position.x = this.pos.x
-    this.body.position.z = this.pos.z
-    this.body.position.y = gy + 0.89
-    this.head.position.x = this.pos.x
-    this.head.position.z = this.pos.z
-    this.head.position.y = gy + 1.63
+    this.root.position.set(this.pos.x, gy, this.pos.z)
+
+    // 立绘始终面向镜头；根据镜头在角色哪一侧切换四向图。
+    const cam = this.camera
+    const cameraAngle = cam
+      ? Math.atan2(cam.position.x - this.pos.x, cam.position.z - this.pos.z)
+      : this.facing
+    this.root.rotation.y = cameraAngle
+    this._chooseView(cameraAngle)
+
+    this.walkPhase += 0.16
+    const bob = this.held ? 0 : Math.abs(Math.sin(this.walkPhase)) * 0.025
+    this.billboard.position.y = SPRITE_H / 2 + bob
+    this.billboard.rotation.z = this.held ? 0 : Math.sin(this.walkPhase) * 0.012
+    this.shadow.position.y = 0.018 + bob * 0.15
   }
 
   despawn() {
     this.active = false
     this.held = false
     this.chaseTime = 0
-    this.body.visible = false
-    this.head.visible = false
+    this.root.visible = false
   }
 
   // 放弃追逐：走人，但不触发死亡
