@@ -204,10 +204,17 @@
     }
     #classq.show { display: flex; }
     #classq .card {
+      position: relative;
       width: 560px; background: rgba(246, 242, 234, .98); color: var(--ink);
-      border-radius: 14px; padding: 28px 30px 24px;
+      border: 1px solid rgba(16, 19, 26, .2); border-radius: 6px; padding: 28px 30px 24px;
       box-shadow: 0 30px 80px rgba(0, 0, 0, .55);
     }
+    /* 档案式角标：让题卡像一份“点名记录”，不是弹窗 */
+    #classq .card::before, #classq .card::after {
+      content: ''; position: absolute; width: 14px; height: 14px; border: 2px solid var(--accent);
+    }
+    #classq .card::before { left: -1px; top: -1px; border-right: 0; border-bottom: 0; }
+    #classq .card::after { right: -1px; bottom: -1px; border-left: 0; border-top: 0; }
     #classq .kicker { font-size: 10.5px; letter-spacing: .22em; color: var(--accent); font-weight: 700; margin-bottom: 10px; }
     #classq .q { font-size: 19px; font-weight: 700; margin-bottom: 20px; letter-spacing: .01em; }
     #classq .opt {
@@ -323,6 +330,34 @@
       backdrop-filter: blur(8px);
     }
     #intro .keys kbd { background: rgba(255, 255, 255, .16); }
+
+    /* ---------- 首屏门：DOM 先行，点/任意键进入 ---------- */
+    #intro.gate {
+      z-index: 45; pointer-events: auto; cursor: pointer;
+      background:
+        radial-gradient(ellipse at 50% 42%, rgba(255, 176, 72, .08) 0%, rgba(11, 13, 18, 0) 62%),
+        linear-gradient(180deg, #0a0c11 0%, #101722 58%, #0a0c11 100%);
+    }
+    #intro.gate:not(.show) { pointer-events: none; }
+    #intro .enter {
+      margin-top: 30px; display: inline-flex; align-items: center; gap: 10px;
+      padding: 11px 26px; border-radius: 99px;
+      border: 1px solid rgba(255, 176, 72, .55);
+      color: #ffd9a3; font-size: 11px; letter-spacing: .3em; text-transform: uppercase;
+      background: rgba(255, 176, 72, .08);
+    }
+    #intro .enter i {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--accent-2); box-shadow: 0 0 12px var(--accent-2);
+    }
+    #intro .corner {
+      position: absolute; font-size: 9.5px; letter-spacing: .24em; text-transform: uppercase;
+      opacity: .48; color: var(--paper);
+    }
+    #intro .corner.tl { left: 26px; top: 22px; }
+    #intro .corner.tr { right: 26px; top: 22px; }
+    #intro .corner.bl { left: 26px; bottom: 22px; }
+    #intro .corner.br { right: 26px; bottom: 22px; }
   </style>
 </head>
 <body>
@@ -389,17 +424,22 @@
     <div id="anchors"></div>
   </div>
 
-  <div id="intro">
+  <div id="intro" class="show gate">
+    <span class="corner tl">AIE1101 · Final Project</span>
+    <span class="corner tr">Non-official coursework</span>
+    <span class="corner bl">WASD move · Shift sprint · E interact</span>
+    <span class="corner br">BUILD · DEV</span>
     <div class="kicker">CUHK-Shenzhen · AIE1101</div>
     <div class="title">CAMPUS</div>
     <div class="sub">校园沙盒 · Sandbox</div>
     <div class="keys">
       <kbd>W/S</kbd>前后 <kbd>A/D</kbd>转身 <kbd>SHIFT</kbd>冲刺 <kbd>SPACE</kbd>跳跃 <kbd>E</kbd>交互
     </div>
+    <div class="enter"><i></i>Click or press any key</div>
   </div>
 
   <div id="wake"></div>
-  <div id="boot"><div class="spinner"></div><div>loading campus</div></div>
+  <div id="boot"><div class="spinner"></div><div>Loading campus · 正在加载校园</div></div>
 
   <script type="module" src="/src/main.js"></script>
 </body>

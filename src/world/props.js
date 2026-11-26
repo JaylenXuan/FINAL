@@ -19,6 +19,50 @@ function box(w, h, d, mat, y = h / 2) {
   return m
 }
 
+// 黑板字：用 2D canvas 画中文再当纹理，不建模字体
+function makeBoardTexture() {
+  const c = document.createElement('canvas')
+  c.width = 1024
+  c.height = 900
+  const x = c.getContext('2d')
+
+  x.fillStyle = '#22352c'
+  x.fillRect(0, 0, c.width, c.height)
+  // 粉笔灰
+  for (let i = 0; i < 900; i++) {
+    x.fillStyle = `rgba(235,240,232,${Math.random() * 0.05})`
+    x.fillRect(Math.random() * c.width, Math.random() * c.height, 2, 2)
+  }
+
+  x.fillStyle = 'rgba(245,243,232,.92)'
+  x.font = '700 74px "Microsoft YaHei", "PingFang SC", sans-serif'
+  x.fillText('AIE1101', 80, 150)
+  x.font = '500 40px "Microsoft YaHei", "PingFang SC", sans-serif'
+  x.fillStyle = 'rgba(245,243,232,.7)'
+  x.fillText('Final Project · Campus Sandbox', 84, 210)
+
+  x.strokeStyle = 'rgba(245,243,232,.35)'
+  x.lineWidth = 3
+  x.beginPath(); x.moveTo(80, 250); x.lineTo(944, 250); x.stroke()
+
+  x.fillStyle = 'rgba(245,243,232,.95)'
+  x.font = '700 64px "Microsoft YaHei", "PingFang SC", sans-serif'
+  x.fillText('点名 · Roll Call', 84, 370)
+  x.font = '500 38px "Microsoft YaHei", "PingFang SC", sans-serif'
+  x.fillStyle = 'rgba(245,243,232,.8)'
+  x.fillText('Answer the question.', 84, 440)
+  x.fillText('答错一次，请出教室。', 84, 500)
+
+  x.fillStyle = 'rgba(255,196,75,.85)'
+  x.font = '700 34px "Microsoft YaHei", sans-serif'
+  x.fillText('2026 · AIE1101', 700, 820)
+
+  const t = new THREE.CanvasTexture(c)
+  t.colorSpace = THREE.SRGBColorSpace
+  t.anisotropy = 4
+  return t
+}
+
 const builders = {
   tree() {
     const g = new THREE.Group()
@@ -71,6 +115,13 @@ const builders = {
   podium() {
     const g = new THREE.Group()
     g.add(box(2.4, 2.2, 0.12, MAT.board, 1.55).translateZ(-0.28)) // 黑板
+    // 黑板字：贴一张 canvas 纹理，不建模字体
+    const face = new THREE.Mesh(
+      new THREE.PlaneGeometry(2.2, 1.95),
+      new THREE.MeshBasicMaterial({ map: makeBoardTexture() })
+    )
+    face.position.set(0, 1.55, -0.215)
+    g.add(face)
     g.add(box(1.7, 1.0, 0.62, MAT.wood, 0.5))
     g.add(box(1.9, 0.06, 0.7, MAT.wood, 1.03))
     return { object: g, solid: [1.9, 1.1, 0.8] }

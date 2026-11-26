@@ -33,6 +33,19 @@ async function main() {
   // 合并版只有「全校园 + 定制教室」一个世界；保留 useCampus 变量给光照/阴影分支
   const useCampus = true
 
+  // 首屏门：DOM 先出，点/任意键后再露场景；即使 WebGL 起不来，第一眼也有东西
+  const gateEl = document.getElementById('intro')
+  const hasGate = !!(gateEl && gateEl.classList.contains('gate'))
+  if (hasGate) {
+    const closeGate = () => {
+      gateEl.classList.remove('show')
+      gateEl.classList.add('hide')
+      gateEl.style.pointerEvents = 'none'
+    }
+    gateEl.addEventListener('click', closeGate, { once: true })
+    window.addEventListener('keydown', closeGate, { once: true })
+  }
+
   const [worldData, bitsData, lines] = await Promise.all([
     loadJSON('/data/world.json'),
     loadJSON('/data/bits.json'),
@@ -1055,7 +1068,7 @@ async function main() {
 
   // 默认进校园时给一张标题卡，让人先知道「这是什么、怎么操作」
   if (startAnchor === defaultStart) {
-    if (!selfie && !params.get('screen') && params.get('bird') !== '1') {
+    if (!hasGate && !selfie && !params.get('screen') && params.get('bird') !== '1') {
       ui.showIntro(3.6)
       // 任意按键/点击可以提前收掉标题卡
       const skipIntro = () => ui.hideIntro()
@@ -1257,6 +1270,14 @@ async function main() {
 
 main().catch((err) => {
   console.error(err)
+  const msg = `LOAD FAILED — ${err && err.message ? err.message : err}`
   const boot = document.getElementById('boot')
-  if (boot) boot.textContent = `LOAD FAILED — ${err && err.message ? err.message : err}`
+  if (boot) boot.textContent = msg
+  const gate = document.getElementById('intro')
+  if (gate) {
+    const sub = gate.querySelector('.sub')
+    if (sub) sub.textContent = msg
+    gate.classList.add('show')
+    gate.style.pointerEvents = 'auto'
+  }
 })
