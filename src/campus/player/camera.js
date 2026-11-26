@@ -4,12 +4,14 @@ import { heightAt, terrainActive } from '../world/terrain.js'
 const LOOK_H = 1.2
 const SMOOTH = 8 // 8/s
 
-// 鼠标视角灵敏度（弧度/像素）。只改这四个数就能整体调快慢：
-// 第一人称（走廊/教室）和第三人称分开配，避免室外转得太晕。
-const LOOK_FP_YAW = 0.00032
-const LOOK_FP_PITCH = 0.00024
-const LOOK_TP_YAW = 0.00028
-const LOOK_TP_PITCH = 0.0002
+// 鼠标视角灵敏度（弧度/像素）。只改这四个数就能整体调快慢。
+// 鼠标增量先累加到目标角度，再按 LOOK_SMOOTH 平滑追过去：
+// 即使浏览器掉帧、一帧里攒了几百像素，镜头也不会瞬间甩飞。
+const LOOK_FP_YAW = 0.00016
+const LOOK_FP_PITCH = 0.00012
+const LOOK_TP_YAW = 0.00018
+const LOOK_TP_PITCH = 0.00013
+const LOOK_SMOOTH = 22 // 1/s，越大越跟手；越小越绵
 
 function pointInPoly(x, z, poly) {
   let inside = false
@@ -46,6 +48,9 @@ export class CameraRig {
     // 第三人称环绕镜头：相机围绕角色转，方位角 camYaw 会跟着角色朝向走
     this.camYaw = null
     this.camPitch = 0.28
+    // addOrbit 只改目标角度，update 里再平滑追上；避免掉帧时一帧甩一大截
+    this.camYawTarget = null
+    this.camPitchTarget = null
     // 室内自由视角：机位固定在教室里的 roomCamera.pos，鼠标只转朝向
     this.indoorYaw = 0
     this.indoorPitch = 0
@@ -53,9 +58,10 @@ export class CameraRig {
     this.dist = 6.2
     this.outdoorDist = 6.2
     this.outdoorPitch = 0.28
-    this.indoorDist = 5.2
-    this.indoorPitch = 0.26
-    this.indoorSide = 1.3
+    // 室内第三人称：跟得近一点，镜头夹在房间/走廊内部
+    this.indoorDist = 3.8
+    this.indoorPitch = 0.2
+    this.indoorSide = 0.55
     this.followDelay = 0
     this.lookH = LOOK_H
     this.lookAt = new THREE.Vector3()
@@ -81,22 +87,43 @@ export class CameraRig {
     this.outdoorPitch = this.camPitch
   }
 
+  _ensureLookTarget() {
+    if (this.camYaw === null) this.camYaw = 0
+    if (this.camYawTarget === null) this.camYawTarget = this.camYaw
+    if (this.camPitchTarget === null) this.camPitchTarget = this.camPitch
+  }
+
+  _syncLookTarget() {
+    this.camYawTarget = this.camYaw ?? 0
+    this.camPitchTarget = this.camPitch
+  }
+
+  /** 把鼠标目标角度平滑追到当前角度；别让一帧的鼠标增量直接把镜头甩飞 */
+  _smoothLook(dt) {
+    if (this.camYaw === null) this.camYaw = 0
+    if (this.camYawTarget === null || this.camPitchTarget === null) this._syncLookTarget()
+    const k = 1 - Math.exp(-LOOK_SMOOTH * dt)
+    this.camYaw += (this.camYawTarget - this.camYaw) * k
+    this.camPitch += (this.camPitchTarget - this.camPitch) * k
+  }
+
   /** 鼠标拖拽 / 指针锁定的视角增量 */
   addOrbit(dx, dy) {
     if (this.mode === 'firstPerson') {
-      this.camYaw -= dx * LOOK_FP_YAW
-      this.camPitch = Math.min(0.8, Math.max(-0.8, this.camPitch + dy * LOOK_FP_PITCH))
+      this._ensureLookTarget()
+      this.camYawTarget -= dx * LOOK_FP_YAW
+      this.camPitchTarget = Math.min(0.8, Math.max(-0.8, this.camPitchTarget + dy * LOOK_FP_PITCH))
       return
     }
     if (this.mode === 'indoor') {
-      // 室内：位置不动，鼠标只旋转视线
+      // 室内固定机位：位置不动，鼠标只旋转视线
       this.indoorYaw -= dx * LOOK_FP_YAW
       this.indoorPitch = Math.min(0.7, Math.max(-0.6, this.indoorPitch + dy * LOOK_FP_PITCH))
       return
     }
-    if (this.camYaw === null) this.camYaw = 0
-    this.camYaw -= dx * LOOK_TP_YAW
-    this.camPitch = Math.min(1.0, Math.max(-0.05, this.camPitch + dy * LOOK_TP_PITCH))
+    this._ensureLookTarget()
+    this.camYawTarget -= dx * LOOK_TP_YAW
+    this.camPitchTarget = Math.min(1.0, Math.max(-0.05, this.camPitchTarget + dy * LOOK_TP_PITCH))
     this.followDelay = 1.4 // 手动转视角后先别抢回来
   }
 
@@ -189,6 +216,7 @@ export class CameraRig {
       )
       this.lookAt.copy(this._tmp)
       this.camera.lookAt(this.lookAt)
+      this._syncLookTarget()
       return
     }
     const room = this.world.roomCameras[this.zone]
@@ -201,6 +229,7 @@ export class CameraRig {
     }
     if (this.mode === 'indoorFollow') {
       if (typeof yaw === 'number') this.camYaw = yaw
+      this._syncLookTarget()
       this._indoorFollowPos(targetPos)
       this.camera.position.copy(this.desired)
       this._tmp.copy(targetPos)
@@ -210,6 +239,7 @@ export class CameraRig {
       return
     }
     if (typeof yaw === 'number') this.camYaw = yaw
+    this._syncLookTarget()
     this._orbitPos(targetPos, this.camYaw ?? 0)
     this.camera.position.copy(this.desired)
     this._tmp.copy(targetPos)
@@ -229,7 +259,8 @@ export class CameraRig {
     } else if (follow) {
       this.dist = this.indoorDist
       this.camPitch = this.indoorPitch
-      this.fov = 56
+      // 房间小、机位会被墙夹近，视野开一点，别让龙把画面吃满
+      this.fov = 64
     } else if (room) {
       this.fov = room.fov
     } else {
@@ -239,6 +270,7 @@ export class CameraRig {
     }
     this.camera.fov = this.fov
     this.camera.updateProjectionMatrix()
+    this._syncLookTarget()
     if (snap && room) {
       this.camera.position.copy(room.pos)
       this._resetIndoorLook(room)
@@ -260,6 +292,13 @@ export class CameraRig {
     }
 
     const room = this.world.roomCameras[this.zone]
+
+    if (this.camYaw === null) {
+      this.camYaw = yaw ?? 0
+      this._syncLookTarget()
+    }
+    // 鼠标目标角度先平滑，再参与相机计算；掉帧时也不会一帧甩半圈
+    this._smoothLook(dt)
 
     if (this.mode === 'firstPerson') {
       // 教室：第一人称，玩家眼睛高度；鼠标控制朝向

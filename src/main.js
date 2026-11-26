@@ -279,7 +279,8 @@ async function main() {
           origin: [ox, 0, oz],
           exit: `a_out_corridor_${i + 1}`,
           props: theme.props,
-          anchors: [{ id: anchorId, pos: [ox, 0, oz + 2], yaw: 0 }]
+          // 站得离后墙远一点，第三人称镜头才有空间退到角色身后
+          anchors: [{ id: anchorId, pos: [ox, 0, oz], yaw: 0 }]
         }
       }
     })
@@ -290,7 +291,8 @@ async function main() {
       if (!zone) continue
       world.zones[def.theme.id] = zone
       world.zones[def.theme.id].floorY = 0
-      world.firstPersonZones.add(def.theme.id)
+      // 教室统一第三人称：能看到龙、能看见自己的位置，镜头夹在房间内
+      world.indoorFollow.add(def.theme.id)
       for (const [id, a] of classWorld.anchors) {
         if (a.zone === def.theme.id) {
           a.label = def.theme.nameEn
@@ -630,7 +632,8 @@ async function main() {
         [siteX - CORR_W / 2 + 0.45, CORR_S - 0.45]
       ]
     }
-    world.firstPersonZones.add('corridor')
+    // 走廊也第三人称；龙不能被隐藏，否则进门像浮空摄像机
+    world.indoorFollow.add('corridor')
 
     // 走廊入口锚点（从室外进来）
     world.anchors.set('a_corridor', {

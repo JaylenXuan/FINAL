@@ -18,8 +18,11 @@ export class Classmates {
     this.audio = audio
     this.lines = lines
 
-    this.room = (data.rooms || []).find((r) => r.id === 'classroom')
-    this.origin = this.room ? this.room.origin : [100, 0, 0]
+    this.rooms = data.rooms || []
+    this.roomById = new Map(this.rooms.map((r) => [r.id, r]))
+    this.roomIds = new Set(this.rooms.map((r) => r.id))
+    this.currentRoom = null
+    this.origin = [100, 0, 0]
     this.list = []
     this.nearest = null
     this.talk = null
@@ -27,6 +30,7 @@ export class Classmates {
     this.bubbleEl = document.getElementById('bubble')
     this.canTalk = false
     this.vrmReady = false
+    this.seatH = 0.46
 
     this._tmp = new THREE.Vector3()
     this._build()
@@ -37,17 +41,24 @@ export class Classmates {
 
   _build() {
     const [ox, oy, oz] = this.origin
+    // 三个人的座位相对房间中心固定；换教室时整组搬过去。
+    // 站位从左到右：鲸鱼娘、奶蛙、奶龙，后排也留一组视觉纵深。
     const defs = [
-      { id: 'cm_whale', name: '鲸鱼娘', line: 'CM_1', kind: 'vrm', pos: [-3.4, 0, -0.6] },
-      { id: 'cm_nailong', name: '奶龙', line: 'CM_2', kind: 'billboard', img: '/models/billboards/nailong.png', pos: [3.4, 0, -0.6] },
-      { id: 'cm_naiwa', name: '奶蛙', line: 'CM_3', kind: 'billboard', img: '/models/billboards/naiwa.png', pos: [1.9, 0, -1.5] }
+      { id: 'cm_whale', name: '鲸鱼娘', line: 'CM_1', kind: 'vrm', pos: [-3.25, 0, -0.35] },
+      { id: 'cm_nailong', name: '奶龙', line: 'CM_2', kind: 'billboard', img: '/models/billboards/nailong.png', pos: [3.25, 0, -0.35] },
+      { id: 'cm_naiwa', name: '奶蛙', line: 'CM_3', kind: 'billboard', img: '/models/billboards/naiwa.png', pos: [1.65, 0, -1.25] }
     ]
     for (const d of defs) {
       const g = new THREE.Group()
       g.position.set(ox + d.pos[0], oy + d.pos[1], oz + d.pos[2])
       g.visible = false
       this.scene.add(g)
-      const cm = { ...d, group: g, object: null, baseY: oy + d.pos[1] }
+      const cm = { ...d, group: g, object: null, baseY: oy + d.pos[1], chair: null }
+      cm.chair = this._chair()
+      g.add(cm.chair)
+      // 桌子放在人物和镜头之间，挡住腿；远看就是三个人坐在课桌前
+      cm.desk = this._desk()
+      g.add(cm.desk)
       if (d.kind === 'vrm') {
         cm.object = this._placeholder()
         g.add(cm.object)
@@ -56,6 +67,46 @@ export class Classmates {
       }
       this.list.push(cm)
     }
+  }
+
+  /** 简单椅子：坐面在 seatH，靠背朝 -Z，和人物朝向一起转 */
+  _chair() {
+    const g = new THREE.Group()
+    const mat = new THREE.MeshStandardMaterial({ color: 0x3b3f45, roughness: 0.7, metalness: 0.45 })
+    const seat = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.07, 0.56), mat)
+    seat.position.set(0, this.seatH, 0)
+    seat.castShadow = true
+    g.add(seat)
+    const back = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.62, 0.07), mat)
+    back.position.set(0, this.seatH + 0.36, -0.245)
+    back.castShadow = true
+    g.add(back)
+    for (const [x, z] of [[-0.24, -0.2], [0.24, -0.2], [-0.24, 0.2], [0.24, 0.2]]) {
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.055, this.seatH, 0.055), mat)
+      leg.position.set(x, this.seatH / 2, z)
+      g.add(leg)
+    }
+    return g
+  }
+
+  /** 小课桌：朝镜头一侧放，遮住腿，让立牌/VRM 都像坐在桌前 */
+  _desk() {
+    const g = new THREE.Group()
+    const wood = new THREE.MeshStandardMaterial({ color: 0xcbb999, roughness: 0.9 })
+    const metal = new THREE.MeshStandardMaterial({ color: 0x62656a, roughness: 0.6, metalness: 0.4 })
+    const top = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.07, 0.56), wood)
+    top.position.set(0, 0.74, 0.62)
+    top.castShadow = true
+    top.receiveShadow = true
+    g.add(top)
+    for (const x of [-0.48, 0.48]) {
+      for (const z of [0.42, 0.82]) {
+        const leg = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.72, 0.05), metal)
+        leg.position.set(x, 0.36, z)
+        g.add(leg)
+      }
+    }
+    return g
   }
 
   _placeholder() {
@@ -81,8 +132,8 @@ export class Classmates {
     const tex = new THREE.TextureLoader().load(cm.img)
     tex.colorSpace = THREE.SRGBColorSpace
     const aspect = tex.image ? tex.image.width / tex.image.height : 0.55
-    const h = 1.6
-    const w = Math.max(0.45, Math.min(1.4, h * aspect))
+    const h = 1.38
+    const w = Math.max(0.45, Math.min(1.3, h * aspect))
     const mesh = new THREE.Mesh(
       new THREE.PlaneGeometry(w, h),
       new THREE.MeshBasicMaterial({
@@ -93,7 +144,8 @@ export class Classmates {
         depthWrite: false
       })
     )
-    mesh.position.y = h / 2
+    // 立牌底边落在椅面上，看起来是坐着而不是悬空
+    mesh.position.y = this.seatH + h / 2
     mesh.castShadow = false
     cm.group.add(mesh)
     cm.object = mesh
@@ -134,6 +186,7 @@ export class Classmates {
       cm.object = vrm.scene
       cm.group.add(vrm.scene)
       cm.vrm = vrm
+      this._seatVrm(vrm)
       this.vrmReady = true
       console.info('[classmates] 鲸鱼娘 VRM 已加载')
     } catch (err) {
@@ -141,33 +194,44 @@ export class Classmates {
     }
   }
 
-  /** 只有「答对下课之后、留在教室」才允许聊天 */
+  /** 把 VRM 摆成坐姿：髋部下沉 + 大腿前伸 + 小腿垂下来 */
+  _seatVrm(vrm) {
+    try {
+      const hips = vrm.humanoid.getNormalizedBoneNode('hips')
+      if (hips) hips.position.y -= 0.26
+      for (const side of ['left', 'right']) {
+        const upper = vrm.humanoid.getNormalizedBoneNode(side + 'UpperLeg')
+        const lower = vrm.humanoid.getNormalizedBoneNode(side + 'LowerLeg')
+        if (upper) upper.rotation.x = -Math.PI / 2
+        if (lower) lower.rotation.x = Math.PI / 2
+      }
+    } catch (err) {
+      console.warn('[classmates] 坐姿骨骼调整失败：', err)
+    }
+  }
+
+  /** 任意一间教室里都能聊天；答题 / 被追时禁用 */
   _refreshCanTalk() {
     this.canTalk =
       this.state.is('Play') &&
-      this.player.zone === 'classroom' &&
-      this.bits.getPhase('class_sleep') === 'done' &&
+      this.roomIds.has(this.player.zone) &&
       !this.bits.questionOpen &&
       this.bits.getPhase('phone_walk') !== 'chase'
     return this.canTalk
   }
 
   _facePlayer(cm) {
+    if (!cm.object) return
+    // 只转人物本体，椅子和桌子保持不动
     const dx = this.player.pos.x - cm.group.position.x
     const dz = this.player.pos.z - cm.group.position.z
-    const a = Math.atan2(dx, dz)
-    if (cm.vrm) {
-      // VRM 的正面是 +Z（已预旋转 π）；这里按玩家方向重新对齐
-      cm.group.rotation.y = a + Math.PI
-    } else {
-      // 2D 立牌始终面向相机，不转
-      cm.group.rotation.y = 0
-    }
+    cm.object.rotation.y = Math.atan2(dx, dz)
   }
 
   _faceCamera(camera) {
     for (const cm of this.list) {
-      if (!cm.billboard || !cm.object) continue
+      if (!cm.object) continue
+      // 立牌和 VRM 都转向镜头；坐着也能看清脸
       cm.object.rotation.y =
         Math.atan2(camera.position.x - cm.group.position.x, camera.position.z - cm.group.position.z)
     }
@@ -218,16 +282,36 @@ export class Classmates {
     this.bubbleEl.classList.remove('show')
   }
 
+  /** 三个人共用一套模型：玩家进哪间教室，就把整组座位搬到那间教室 */
+  _syncRoom() {
+    const room = this.roomById.get(this.player.zone) || null
+    if (room === this.currentRoom) return
+    if (this.talk) this.endTalk()
+    this.currentRoom = room
+    for (const cm of this.list) {
+      if (!room) {
+        cm.group.visible = false
+        continue
+      }
+      const [ox, oy, oz] = room.origin
+      this.origin = [ox, oy, oz]
+      cm.baseY = oy
+      cm.group.position.set(ox + cm.pos[0], oy, oz + cm.pos[2])
+      cm.group.visible = true
+    }
+  }
+
   update(dt, camera) {
     this._refreshCanTalk()
+    this._syncRoom()
 
     this._whaleTimer += dt
-    if (!this._whaleStarted && (this.player.zone === 'classroom' || this._whaleTimer > 5)) {
+    if (!this._whaleStarted && (this.roomIds.has(this.player.zone) || this._whaleTimer > 5)) {
       this._whaleStarted = true
       this._loadWhale()
     }
 
-    const visible = this.player.zone === 'classroom'
+    const visible = !!this.currentRoom
     for (const cm of this.list) cm.group.visible = visible
 
     if (visible) {
