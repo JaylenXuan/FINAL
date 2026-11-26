@@ -4,6 +4,13 @@ import { heightAt, terrainActive } from '../world/terrain.js'
 const LOOK_H = 1.2
 const SMOOTH = 8 // 8/s
 
+// 鼠标视角灵敏度（弧度/像素）。只改这四个数就能整体调快慢：
+// 第一人称（走廊/教室）和第三人称分开配，避免室外转得太晕。
+const LOOK_FP_YAW = 0.00032
+const LOOK_FP_PITCH = 0.00024
+const LOOK_TP_YAW = 0.00028
+const LOOK_TP_PITCH = 0.0002
+
 function pointInPoly(x, z, poly) {
   let inside = false
   for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
@@ -77,20 +84,19 @@ export class CameraRig {
   /** 鼠标拖拽 / 指针锁定的视角增量 */
   addOrbit(dx, dy) {
     if (this.mode === 'firstPerson') {
-      this.camYaw -= dx * 0.0006
-      this.camPitch = Math.min(0.8, Math.max(-0.8, this.camPitch + dy * 0.00045))
+      this.camYaw -= dx * LOOK_FP_YAW
+      this.camPitch = Math.min(0.8, Math.max(-0.8, this.camPitch + dy * LOOK_FP_PITCH))
       return
     }
     if (this.mode === 'indoor') {
       // 室内：位置不动，鼠标只旋转视线
-      this.indoorYaw -= dx * 0.0006
-      this.indoorPitch = Math.min(0.7, Math.max(-0.6, this.indoorPitch + dy * 0.00045))
+      this.indoorYaw -= dx * LOOK_FP_YAW
+      this.indoorPitch = Math.min(0.7, Math.max(-0.6, this.indoorPitch + dy * LOOK_FP_PITCH))
       return
     }
     if (this.camYaw === null) this.camYaw = 0
-    // 灵敏度：0.005 太飘了，一划就转半圈；这里降到 0.0022
-    this.camYaw -= dx * 0.0005
-    this.camPitch = Math.min(1.0, Math.max(-0.05, this.camPitch + dy * 0.00035))
+    this.camYaw -= dx * LOOK_TP_YAW
+    this.camPitch = Math.min(1.0, Math.max(-0.05, this.camPitch + dy * LOOK_TP_PITCH))
     this.followDelay = 1.4 // 手动转视角后先别抢回来
   }
 
