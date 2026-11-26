@@ -9,7 +9,8 @@ import {
   pavingTexture,
   grassTexture,
   signTexture,
-  palmGeometry,
+  palmTrunkGeometry,
+  palmFrondGeometry,
   lampGeometry,
   lampHeadGeometry,
   lobbyMaps,
@@ -1143,17 +1144,35 @@ export function buildCampusOSM(data, scene) {
   const treePts = scatterTrees(view, boxes, LB)
   let treeCount = 0
   if (treePts.length) {
-    const trunkGeo = new THREE.CylinderGeometry(0.2, 0.34, 4.0, 5)
-    trunkGeo.translate(0, 2.0, 0)
+    // 树干 + 三根分叉：近处能看出是一棵有结构的树，而不是一根棍子顶个球
+    const trunkParts = [new THREE.CylinderGeometry(0.2, 0.36, 4.2, 7).translate(0, 2.1, 0)]
+    for (let i = 0; i < 3; i++) {
+      const branch = new THREE.CylinderGeometry(0.085, 0.16, 1.9, 5)
+      branch.translate(0, 0.95, 0)
+      branch.rotateZ(0.62 + i * 0.18)
+      branch.rotateY((i / 3) * Math.PI * 2 + 0.35)
+      branch.translate(0, 3.05, 0)
+      trunkParts.push(branch)
+    }
+    const trunkGeo = mergeGeometries(trunkParts)
 
-    // 两个错开的小树冠，比一个大球更像行道树，也不会在近处糊成一坨
-    const crownA = new THREE.IcosahedronGeometry(2.35, 0)
-    crownA.scale(1, 0.92, 1)
-    crownA.translate(0, 5.3, 0)
-    const crownB = new THREE.IcosahedronGeometry(1.7, 0)
-    crownB.scale(1.05, 0.88, 1.05)
-    crownB.translate(1.0, 6.5, 0.6)
-    const crown = mergeGeometries([crownA, crownB])
+    // 多层次树冠：细节 1 的几何 + 5 个错落团块，轮廓不再是两个尖球；
+    // 只增加实例几何的三角形，不增加 draw call，树多也不会卡。
+    const blobs = [
+      [0, 5.45, 0, 2.3],
+      [-1.45, 4.95, 0.25, 1.75],
+      [1.35, 5.0, -0.3, 1.8],
+      [0.15, 6.55, 0.1, 1.65],
+      [-0.55, 5.95, -1.05, 1.4],
+      [0.7, 4.65, 0.95, 1.35]
+    ]
+    const crownParts = blobs.map(([x, y, z, r]) => {
+      const g = new THREE.IcosahedronGeometry(r, 1)
+      g.scale(1, 0.86 + (r % 0.2) * 0.3, 1)
+      g.translate(x, y, z)
+      return g
+    })
+    const crown = mergeGeometries(crownParts)
 
     const trunk = new THREE.InstancedMesh(
       trunkGeo,
@@ -1172,7 +1191,7 @@ export function buildCampusOSM(data, scene) {
     const p = new THREE.Vector3()
     const rand = makeRandom(4242)
     const col = new THREE.Color()
-    const greens = [0x4f6b3c, 0x5d7c46, 0x496236, 0x668550]
+    const greens = [0x5d7b43, 0x6f8d4e, 0x527039, 0x7a9657, 0x66834a]
 
     treePts.forEach(([x, z], i) => {
       const sc = 0.78 + rand() * 0.55
@@ -1183,7 +1202,7 @@ export function buildCampusOSM(data, scene) {
       trunk.setMatrixAt(i, m)
       leaves.setMatrixAt(i, m)
       col.setHex(greens[i % greens.length])
-      col.offsetHSL(0, 0, (rand() - 0.5) * 0.06)
+      col.offsetHSL((rand() - 0.5) * 0.014, (rand() - 0.5) * 0.04, (rand() - 0.5) * 0.07)
       leaves.setColorAt(i, col)
     })
     trunk.castShadow = leaves.castShadow = true
@@ -1196,10 +1215,15 @@ export function buildCampusOSM(data, scene) {
   /* ---------- 棕榈 ---------- */
   const palmPts = scatterPalms(view, boxes)
   if (palmPts.length) {
-    const geo = palmGeometry()
-    const palms = new THREE.InstancedMesh(
-      geo,
-      new THREE.MeshStandardMaterial({ color: 0x5f8146, roughness: 0.95, envMapIntensity: 0.25, side: THREE.DoubleSide }),
+    // 树干和叶片分开两个实例网格：树干是棕色，叶片是绿色，不能再共用一套材质
+    const palmsTrunk = new THREE.InstancedMesh(
+      palmTrunkGeometry(),
+      new THREE.MeshStandardMaterial({ color: 0x7b6247, roughness: 0.95, envMapIntensity: 0.2 }),
+      palmPts.length
+    )
+    const palmsLeaves = new THREE.InstancedMesh(
+      palmFrondGeometry(),
+      new THREE.MeshStandardMaterial({ color: 0x5f8146, roughness: 0.9, envMapIntensity: 0.3, side: THREE.DoubleSide }),
       palmPts.length
     )
     const m = new THREE.Matrix4()
@@ -1213,11 +1237,13 @@ export function buildCampusOSM(data, scene) {
       s.set(sc, sc, sc)
       p.set(x, heightAt(x, z) - 0.1, z)
       m.compose(p, q, s)
-      palms.setMatrixAt(i, m)
+      palmsTrunk.setMatrixAt(i, m)
+      palmsLeaves.setMatrixAt(i, m)
     })
-    palms.castShadow = true
-    root.add(palms)
-    drawCalls++
+    palmsTrunk.castShadow = palmsLeaves.castShadow = true
+    palmsTrunk.receiveShadow = palmsLeaves.receiveShadow = true
+    root.add(palmsTrunk, palmsLeaves)
+    drawCalls += 2
   }
 
   /* ---------- 路灯 ---------- */

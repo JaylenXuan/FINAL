@@ -537,24 +537,37 @@ export function signTexture(cn, en) {
 
 /* ---------------- 棕榈 / 路灯几何 ---------------- */
 
-export function palmGeometry() {
+export function palmTrunkGeometry() {
   const parts = []
-  const trunk = new THREE.CylinderGeometry(0.17, 0.3, 7.2, 7)
+  const trunk = new THREE.CylinderGeometry(0.16, 0.32, 7.2, 8)
   trunk.translate(0, 3.6, 0)
   parts.push(trunk)
+  // 底部外扩 + 几道浅色环，近看不再是一根光滑绿棍
+  const root = new THREE.CylinderGeometry(0.32, 0.52, 0.5, 8)
+  root.translate(0, 0.25, 0)
+  parts.push(root)
+  for (const y of [1.25, 2.45, 3.65, 4.85, 6.05]) {
+    const ring = new THREE.CylinderGeometry(0.2, 0.23, 0.09, 8)
+    ring.translate(0, y, 0)
+    parts.push(ring)
+  }
+  return mergeGeometries(parts)
+}
 
-  // 叶片：一条向下弯的窄带，绕 Y 排一圈
-  for (let f = 0; f < 9; f++) {
-    const seg = 5
-    const len = 2.9
+export function palmFrondGeometry() {
+  const parts = []
+  const addFrond = (angle, len, baseY, droop) => {
+    const seg = 7
     const pos = []
     const uvs = []
     const idx = []
     for (let i = 0; i <= seg; i++) {
       const t = i / seg
       const x = t * len
-      const y = 7.1 + Math.sin(t * 1.5) * 0.55 - t * t * 1.75
-      const w = 0.42 * (1 - t) + 0.03
+      const y = baseY + Math.sin(t * 1.45) * 0.48 - t * t * droop
+      // 叶缘做成锯齿状，远看有羽状叶片的层次，而不是一条光板
+      const lobe = 0.72 + 0.28 * Math.cos(t * Math.PI * 9)
+      const w = (0.47 * (1 - t) + 0.045) * lobe
       pos.push(x, y, -w, x, y, w)
       uvs.push(t, 0, t, 1)
       if (i < seg) {
@@ -567,9 +580,12 @@ export function palmGeometry() {
     geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2))
     geo.setIndex(idx)
     geo.computeVertexNormals()
-    geo.rotateY((f / 9) * Math.PI * 2)
+    geo.rotateY(angle)
     parts.push(geo)
   }
+  // 后排长叶 + 前排短叶，两层树冠，侧面看有体积
+  for (let f = 0; f < 12; f++) addFrond((f / 12) * Math.PI * 2, 3.3, 7.05, 1.9)
+  for (let f = 0; f < 6; f++) addFrond((f / 6) * Math.PI * 2 + 0.26, 2.15, 7.35, 1.1)
   return mergeGeometries(parts)
 }
 
