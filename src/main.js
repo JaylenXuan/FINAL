@@ -14,6 +14,7 @@ import { heightAt } from './campus/world/terrain.js'
 import { Chaser } from './npc/chaser.js'
 import { Bits } from './bits/bits.js'
 import { HUD } from './ui/hud.js'
+import { PhoneUI } from './ui/phone.js'
 import { Blackout } from './ui/blackout.js'
 import { Audio } from './audio/audio.js'
 import { createDust } from './campus/fx/dust.js'
@@ -748,6 +749,15 @@ async function main() {
     classroomZone
   })
 
+  // 像素风手机：Tab 开关，开着手机走路仍然会触发校长追逐
+  const phoneUI = new PhoneUI({
+    onToggle: (open) => {
+      player.setPhone(open)
+      ui.setPhone(open)
+    },
+    getStatus: () => ({ zone: player.zone, stars: bits.stars })
+  })
+
   // 小地图：室外用校园建筑轮廓，室内用定制教室的 room 矩形
   const campusBounds = world.zones.outdoor.bounds
   const mapBuildings = (campusData?.buildings || []).map((b) => {
@@ -982,6 +992,7 @@ async function main() {
     bits.stars = 0
     bits.questionOpen = false
     ui.showQuestion(false)
+    phoneUI.close()
     state.set(S.CAUGHT)
     const title =
       payload?.reason === 'class'
@@ -1103,8 +1114,7 @@ async function main() {
       if (bits.questionOpen) return
 
       if (input.once('Tab')) {
-        player.setPhone(!player.phoneUp)
-        ui.setPhone(player.phoneUp)
+        phoneUI.toggle()
         audio.select()
       }
       if (input.once('KeyE')) {

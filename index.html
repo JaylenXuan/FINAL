@@ -182,19 +182,79 @@
     #subtitle .en { font-size: 18px; line-height: 1.4; font-weight: 500; }
     #subtitle .zh { font-size: 12.5px; opacity: .7; margin-top: 4px; }
 
-    /* ---------- phone ---------- */
+    /* ---------- phone（像素风） ---------- */
     #phone {
-      position: absolute; right: 26px; bottom: 26px; width: 168px; height: 300px;
-      border-radius: 24px; border: 2px solid rgba(255, 255, 255, .3);
-      background: linear-gradient(160deg, rgba(28, 32, 44, .96), rgba(12, 14, 20, .98));
-      transform: translateY(120%); transition: transform .22s cubic-bezier(.2, .9, .2, 1);
-      padding: 16px 12px; display: flex; flex-direction: column; gap: 10px;
-      box-shadow: 0 24px 60px rgba(0, 0, 0, .5);
+      position: fixed; right: 24px; bottom: 24px; width: 264px; height: 520px;
+      background: #0c1410; border: 3px solid #05070a;
+      box-shadow: 8px 8px 0 rgba(0, 0, 0, .35), inset 0 0 0 2px #1d2a22;
+      transform: translateY(140%); transition: transform .22s steps(6);
+      display: flex; flex-direction: column; padding: 10px;
+      font-family: "Courier New", ui-monospace, monospace; color: #9fe870;
+      z-index: 30; image-rendering: pixelated;
     }
     #phone.up { transform: translateY(0); }
-    #phone .bar { height: 10px; border-radius: 6px; background: rgba(255, 255, 255, .16); }
-    #phone .bar.short { width: 55%; }
-    #phone .app { flex: 1; border-radius: 14px; background: linear-gradient(180deg, rgba(255, 255, 255, .1), rgba(255, 255, 255, .04)); }
+    #phone .p-status {
+      display: flex; justify-content: space-between; font-size: 9.5px; letter-spacing: .1em;
+      color: #6f8f78; padding: 1px 4px 7px;
+    }
+    #phone .p-screen {
+      flex: 1; position: relative; overflow: hidden;
+      background: #08100c; border: 2px solid #1d2a22; padding: 10px;
+    }
+    #phone .p-screen::after {
+      content: ''; position: absolute; inset: 0; pointer-events: none;
+      background: repeating-linear-gradient(0deg, rgba(0, 0, 0, .16) 0 1px, transparent 1px 3px);
+    }
+    #phone .p-title {
+      font-size: 10.5px; letter-spacing: .2em; color: #ffcc66; margin-bottom: 10px;
+    }
+    #phone .p-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
+    #phone .p-app {
+      position: relative; border: 2px solid #1d2a22; background: #0d1712;
+      padding: 9px 3px 7px; text-align: center; cursor: pointer;
+    }
+    #phone .p-app:hover { border-color: #9fe870; background: #122018; }
+    #phone .p-ico { font-size: 18px; line-height: 1; margin-bottom: 6px; color: #9fe870; }
+    #phone .p-name { font-size: 8.5px; letter-spacing: .08em; color: #cfe6d6; }
+    #phone .p-badge {
+      position: absolute; top: -5px; right: -5px; min-width: 15px; height: 15px;
+      background: #e0563f; color: #120806; font-size: 9px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center; padding: 0 3px;
+    }
+    #phone .p-view { position: relative; z-index: 1; }
+    #phone .p-back {
+      display: inline-block; font-size: 10px; color: #6f8f78; cursor: pointer;
+      margin-bottom: 10px; letter-spacing: .12em;
+    }
+    #phone .p-back:hover { color: #9fe870; }
+    #phone .p-row {
+      border-bottom: 1px dashed #1d2a22; padding: 9px 2px; cursor: pointer;
+    }
+    #phone .p-row:hover { background: #0f1d16; }
+    #phone .p-row .t { font-size: 10.5px; color: #d9efe1; letter-spacing: .04em; }
+    #phone .p-row .s { font-size: 9px; color: #6f8f78; margin-top: 4px; }
+    #phone .p-body { font-size: 10px; line-height: 1.7; color: #b9d8c4; white-space: pre-wrap; }
+    #phone .p-note { font-size: 9px; color: #6f8f78; margin-top: 10px; line-height: 1.6; }
+    #phone .p-cam {
+      position: relative; height: 190px; border: 2px solid #9fe870; margin-top: 4px;
+      background: repeating-linear-gradient(45deg, #0b1710 0 8px, #0d1b13 8px 16px);
+    }
+    #phone .p-cam i {
+      position: absolute; left: 50%; top: 50%; width: 26px; height: 26px;
+      transform: translate(-50%, -50%);
+      border-left: 2px solid #9fe870; border-top: 2px solid #9fe870;
+    }
+    #phone .p-cam i::after {
+      content: ''; position: absolute; left: 100%; top: 100%; width: 26px; height: 26px;
+      border-right: 2px solid #9fe870; border-bottom: 2px solid #9fe870;
+      transform: translate(-24px, -24px);
+    }
+    #phone .p-rec {
+      position: absolute; left: 10px; top: 10px; font-size: 9px; color: #e0563f; letter-spacing: .16em;
+      animation: rec 1s steps(2) infinite;
+    }
+    @keyframes rec { 50% { opacity: .2; } }
+    #phone .p-play { color: #ffcc66; cursor: pointer; }
 
     /* ---------- class question ---------- */
     #classq {
