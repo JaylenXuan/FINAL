@@ -85,6 +85,15 @@
       background: var(--accent-2);
       box-shadow: 0 0 10px rgba(255, 182, 72, .9);
     }
+    /* GTA 式通缉条：右上角 */
+    #wanted {
+      position: absolute; top: 16px; right: 24px;
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 14px;
+      background: var(--glass); border: 1px solid var(--glass-line); border-radius: 12px;
+      backdrop-filter: blur(10px) saturate(1.15); box-shadow: var(--shadow);
+    }
+    #wanted .wlabel { font-size: 9px; letter-spacing: .22em; opacity: .55; }
 
     #hint {
       position: absolute; left: 16px; bottom: 16px;
@@ -446,7 +455,11 @@
 
   <div id="hud">
     <div id="hud-top">
-      <div class="chip"><div id="stars"><i></i><i></i><i></i></div><div id="zone">Plaza</div></div>
+      <div class="chip"><div id="zone">Plaza</div></div>
+    </div>
+    <div id="wanted">
+      <span class="wlabel">WANTED</span>
+      <div id="stars"><i></i><i></i><i></i></div>
     </div>
     <div id="hint">
       <div class="row">
